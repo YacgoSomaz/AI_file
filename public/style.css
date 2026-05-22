@@ -5406,3 +5406,35 @@ a { color: inherit; }
     border-radius: 14px 14px 0 0;
   }
 }
+
+/* ── file card 布局修正 ─────────────────────────────────────────── */
+.file-thumb-wrap {
+  position: relative;   /* 让删除按钮只在缩略图范围内定位 */
+  flex-shrink: 0;
+}
+.file-thumb-wrap .btn-delete-card {
+  position: absolute;
+  top: 6px; right: 6px;
+  bottom: auto; left: auto;
+}
+
+/* 底部操作栏：标签左 / 下载右，不换行不压叠 */
+.file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: nowrap;
+}
+
+/* 下载链接独立样式，不用 btn-ghost */
+.file-dl {
+  font-size: 12px;
+  color: #64748b;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 3px 0;
+  flex-shrink: 0;
+}
+.file-dl:hover { color: #2563eb; text-decoration: underline; }

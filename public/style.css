@@ -5355,6 +5355,121 @@ a { color: inherit; }
 
 
 /* ── 浮动上传队列面板 ───────────────────────────────────────────── */
+/* ── 悬浮快速上传 FAB ────────────────────────────────────── */
+.fab-inbox {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 28px;
+  height: 56px;
+  border-radius: 999px;
+  background: var(--clay);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  box-shadow: 0 4px 24px rgba(166,74,46,.45), 0 1px 4px rgba(0,0,0,.15);
+  cursor: pointer;
+  border: none;
+  transition: transform .18s ease, box-shadow .18s ease, background .15s;
+  white-space: nowrap;
+}
+.fab-inbox:hover {
+  background: var(--clay-deep);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 8px 32px rgba(166,74,46,.5), 0 2px 8px rgba(0,0,0,.18);
+}
+.fab-inbox:active {
+  transform: translateX(-50%) translateY(0);
+  box-shadow: 0 2px 12px rgba(166,74,46,.4);
+}
+.fab-inbox svg { width: 20px; height: 20px; }
+/* 有文件时 FAB 加脉冲圆点 */
+.fab-inbox.has-files::after {
+  content: '';
+  position: absolute;
+  top: 8px; right: 12px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--clay-deep);
+  animation: pulse-dot 1.6s ease infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.5); opacity: .6; }
+}
+
+/* ── 首页未归类提醒横幅 ──────────────────────────────────── */
+.inbox-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 0 8px;
+  padding: 16px 24px;
+  border-radius: var(--r-lg);
+  background: linear-gradient(135deg, #fff3ee 0%, #fde8dd 100%);
+  border: 1.5px solid #f4bfaa;
+  animation: banner-in .3s ease;
+}
+@keyframes banner-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.inbox-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.inbox-banner-icon {
+  font-size: 28px;
+  line-height: 1;
+  animation: swing .6s ease .2s;
+}
+@keyframes swing {
+  0%,100% { transform: rotate(0); }
+  25%      { transform: rotate(-12deg); }
+  75%      { transform: rotate(10deg); }
+}
+.inbox-banner-left strong {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--clay-deep);
+}
+.inbox-banner-left > div {
+  font-size: 15px;
+  color: var(--clay-deep);
+  font-weight: 500;
+}
+.inbox-banner-sub {
+  font-size: 13px;
+  color: var(--clay);
+  font-weight: 400;
+}
+.inbox-banner-btn {
+  flex-shrink: 0;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--clay);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+  white-space: nowrap;
+}
+.inbox-banner-btn:hover {
+  background: var(--clay-deep);
+  transform: translateX(2px);
+}
+
 /* ── inbox 入口按钮 & 角标 ──────────────────────────────────── */
 .btn-inbox {
   position: relative;

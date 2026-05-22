@@ -444,6 +444,8 @@ const uq = {
     // 图片缩略图在服务端上传完成前已同步生成，无需延迟二次刷新
     if (this.items.every(i => i.status === 'done' || i.status === 'error')) {
       if (state.currentProject && state.currentCategory) renderFiles();
+      // 刷新 inbox 横幅与角标（FAB 上传时文件数会变）
+      if (typeof inbox !== 'undefined') inbox.refreshBadge();
       this.dismissTimer = setTimeout(() => this._dismiss(), 3000);
     }
   },
@@ -671,17 +673,34 @@ const inbox = {
     document.body.style.overflow = '';
   },
 
-  // 刷新徽章数量（每次打开首页时调用）
+  // 刷新提醒状态（角标 + 首页横幅）
   async refreshBadge() {
     try {
       const files = await api('GET', '/api/inbox/files');
+      const count  = files.length;
+
+      // header 角标（header 里已移除，保留接口兼容）
       const badge = document.getElementById('inboxBadge');
-      if (files.length > 0) {
-        badge.textContent = files.length;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+      if (badge) {
+        badge.textContent = count;
+        badge.classList.toggle('hidden', count === 0);
       }
+
+      // 首页横幅
+      const banner = document.getElementById('inboxBanner');
+      if (banner) {
+        if (count > 0) {
+          document.getElementById('inboxBannerCount').textContent = count;
+          banner.classList.remove('hidden');
+        } else {
+          banner.classList.add('hidden');
+        }
+      }
+
+      // FAB 角标
+      const fab = document.getElementById('fabInboxUpload');
+      if (fab) fab.classList.toggle('has-files', count > 0);
+
     } catch { /* 静默失败 */ }
   },
 
@@ -855,6 +874,22 @@ function initInbox() {
     if (e.target === document.getElementById('classifyModal')) classifyModal.close();
   });
 
-  // 初始刷新角标
+  // FAB 悬浮上传按钮
+  const fab      = document.getElementById('fabInboxUpload');
+  const fabInput = document.getElementById('fabFileInput');
+  fab.addEventListener('click', e => {
+    if (e.target === fabInput) return;
+    fabInput.click();
+  });
+  fabInput.addEventListener('change', () => {
+    inbox.uploadFiles(fabInput.files);
+    fabInput.value = '';
+  });
+
+  // 首页横幅「立即归类」按钮
+  const bannerBtn = document.getElementById('inboxBannerBtn');
+  if (bannerBtn) bannerBtn.addEventListener('click', () => inbox.open());
+
+  // 初始刷新角标 & 横幅
   inbox.refreshBadge();
 }

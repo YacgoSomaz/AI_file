@@ -1,21 +1,16 @@
-const express = require('express');
-const session = require('express-session');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
-const sharp = require('sharp');
-const ffmpeg = require('fluent-ffmpeg');
+import express        from 'express';
+import session        from 'express-session';
+import multer         from 'multer';
+import path           from 'node:path';
+import fs             from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { v4 as uuidv4 } from 'uuid';
+import { makeThumbnail, IMAGE_EXTENSIONS } from './lib/thumbnail.js';
 
-try {
-  const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-  ffmpeg.setFfmpegPath(ffmpegInstaller.path);
-} catch (e) {
-  console.warn('ffmpeg not available, video thumbnails disabled');
-}
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const app = express();
-const PORT = 3000;
+const app       = express();
+const PORT      = 3000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const THUMBS_DIR  = path.join(UPLOADS_DIR, '.thumbs');
 const DATA_FILE   = path.join(__dirname, 'data', 'projects.json');
@@ -23,7 +18,7 @@ const ADMIN_CODE  = 'shashasha';
 const MAX_SIZE    = 500 * 1024 * 1024;
 const ALLOWED_EXT = /\.(jpg|jpeg|png|webp|mp4|mov|pdf|docx|xlsx|pptx)$/i;
 
-// ── init dirs ────────────────────────────────────────────────────────────────
+// ── init dirs ─────────────────────────────────────────────────────────────────
 [UPLOADS_DIR, THUMBS_DIR, path.dirname(DATA_FILE)].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
@@ -31,39 +26,12 @@ if (!fs.existsSync(DATA_FILE)) {
   fs.writeFileSync(DATA_FILE, JSON.stringify({ projects: [] }, null, 2));
 }
 
-// ── data helpers ─────────────────────────────────────────────────────────────
+// ── data helpers ──────────────────────────────────────────────────────────────
 function loadData() { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
 function saveData(d) { fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2)); }
 
 function fixName(raw) {
   try { return Buffer.from(raw, 'latin1').toString('utf8'); } catch { return raw; }
-}
-
-// ── thumbnail ─────────────────────────────────────────────────────────────────
-async function makeThumbnail(filePath, storedName) {
-  const ext       = path.extname(storedName).toLowerCase();
-  const thumbName = storedName.replace(/\.[^.]+$/, '.jpg');
-  const thumbPath = path.join(THUMBS_DIR, thumbName);
-  if (fs.existsSync(thumbPath)) return thumbName;
-
-  try {
-    if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
-      await sharp(filePath).resize(400, null).jpeg({ quality: 72 }).toFile(thumbPath);
-      return thumbName;
-    }
-    if (['.mp4', '.mov'].includes(ext)) {
-      await new Promise((resolve, reject) => {
-        ffmpeg(filePath)
-          .screenshots({ timestamps: [1], filename: thumbName, folder: THUMBS_DIR, size: '400x?' })
-          .on('end', resolve)
-          .on('error', reject);
-      });
-      return thumbName;
-    }
-  } catch (e) {
-    console.error('thumb failed:', storedName, e.message);
-  }
-  return null;
 }
 
 // ── middleware ────────────────────────────────────────────────────────────────
@@ -203,8 +171,25 @@ app.post('/api/upload/:projectId/:categoryId', upload.single('file'), async (req
   const project  = data.projects.find(p => p.id === req.params.projectId);
   const category = project && project.categories.find(c => c.id === req.params.categoryId);
   if (!project || !category) return res.status(404).json({ error: '项目或分类不存在' });
-  makeThumbnail(req.file.path, req.file.filename).catch(() => {});
-  res.json({ filename: req.file.filename, originalname: fixName(req.file.originalname), size: req.file.size });
+
+  const ext = path.extname(req.file.filename).toLowerCase();
+  let thumb = null;
+
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    // 图片同步生成缩略图（sharp ~200ms），响应前缩略图已就绪，前端刷新后立即显示
+    const thumbName = await makeThumbnail(req.file.path, req.file.filename, THUMBS_DIR);
+    thumb = thumbName ? `/thumbs/${thumbName}` : null;
+  } else {
+    // 视频/文档异步生成，不阻塞响应
+    makeThumbnail(req.file.path, req.file.filename, THUMBS_DIR).catch(() => {});
+  }
+
+  res.json({
+    filename: req.file.filename,
+    originalname: fixName(req.file.originalname),
+    size: req.file.size,
+    thumb,
+  });
 });
 
 app.get('/api/projects/:projectId/categories/:categoryId/files', (req, res) => {
@@ -213,7 +198,7 @@ app.get('/api/projects/:projectId/categories/:categoryId/files', (req, res) => {
   const category = project && project.categories.find(c => c.id === req.params.categoryId);
   if (!project || !category) return res.status(404).json({ error: '项目或分类不存在' });
 
-  const dir = path.join(UPLOADS_DIR, req.params.projectId, req.params.categoryId);
+  const dir   = path.join(UPLOADS_DIR, req.params.projectId, req.params.categoryId);
   const empty = { project: { id: project.id, name: project.name }, category: { id: category.id, name: category.name }, files: [] };
   if (!fs.existsSync(dir)) return res.json(empty);
 
@@ -223,7 +208,7 @@ app.get('/api/projects/:projectId/categories/:categoryId/files', (req, res) => {
     const ext       = path.extname(name).toLowerCase();
     const thumbName = name.replace(/\.[^.]+$/, '.jpg');
     let type = 'doc';
-    if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) type = 'image';
+    if (IMAGE_EXTENSIONS.has(ext)) type = 'image';
     else if (['.mp4', '.mov'].includes(ext)) type = 'video';
     return {
       name,
@@ -264,6 +249,6 @@ app.get('/api/download/:projectId/:categoryId/:filename', (req, res) => {
 });
 
 // ── error handler ─────────────────────────────────────────────────────────────
-app.use((err, req, res, next) => res.status(400).json({ error: err.message }));
+app.use((err, req, res, _next) => res.status(400).json({ error: err.message }));
 
 app.listen(PORT, () => console.log(`文件管理系统运行在 http://0.0.0.0:${PORT}`));

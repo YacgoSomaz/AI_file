@@ -233,31 +233,30 @@ async function renderFiles() {
     const card = document.createElement('div');
     card.className = 'card file-card';
 
-    const thumbHtml = f.thumb
-      ? `<img class="file-thumb" src="${f.thumb}" alt="${f.displayName}" loading="lazy">`
-      : f.type === 'image' || f.type === 'video'
-        ? `<div class="file-thumb-placeholder">${fileIcon(f.type)}</div>`
-        : `<div class="file-thumb-placeholder">${fileIcon('.' + f.displayName.split('.').pop().toLowerCase())}</div>`;
+    const thumbContent = f.thumb
+      ? `<img src="${f.thumb}" loading="lazy" alt="${f.displayName}">`
+      : `<div class="file-thumb-placeholder">${fileIcon(f.type)}</div>`;
 
-    card.innerHTML = `
-      <div class="file-thumb-wrap">
-        ${thumbHtml}
-        ${state.isAdmin ? `<button class="btn-delete-card" data-name="${f.name}">删除</button>` : ''}
-      </div>
-      <div class="file-info">
-        <div class="file-name">${f.displayName}</div>
-        <div class="file-meta">${formatSize(f.size)} · ${formatDate(f.uploadedAt)}</div>
-        <div class="file-actions">
-          ${typeBadge(f.type, f.displayName)}
-          <a class="file-dl" href="/api/download/${projectId}/${categoryId}/${f.name}" download>↓ 下载</a>
-        </div>
-      </div>
-    `;
+    const deleteBtn = state.isAdmin
+      ? `<button class="btn-delete-card" data-name="${f.name}">删除</button>`
+      : '';
+
+    // .type-badge 和 .file-actions 是 .file-card 的直接子元素（position:absolute 覆盖在缩略图上）
+    card.innerHTML =
+      `<div class="file-thumb">${thumbContent}</div>` +
+      `${typeBadge(f.type, f.displayName)}` +
+      `<div class="file-actions">` +
+        `<a href="/api/download/${projectId}/${categoryId}/${f.name}" download>↓ 下载</a>` +
+        deleteBtn +
+      `</div>` +
+      `<div class="file-info">` +
+        `<div class="file-name">${f.displayName}</div>` +
+        `<div class="file-meta">${formatSize(f.size)} · ${formatDate(f.uploadedAt)}</div>` +
+      `</div>`;
 
     // image click → lightbox
     if (f.type === 'image') {
-      const thumbEl = card.querySelector('.file-thumb') || card.querySelector('.file-thumb-placeholder');
-      if (thumbEl) thumbEl.style.cursor = 'zoom-in';
+      card.querySelector('.file-thumb').style.cursor = 'zoom-in';
       card.addEventListener('click', e => {
         if (e.target.closest('.btn-delete-card') || e.target.closest('a')) return;
         openLightbox(`/uploads/${projectId}/${categoryId}/${f.name}`);
@@ -341,14 +340,10 @@ const uq = {
     this._render();
     this._pump();
 
-    // 全部结束后刷新文件列表，并 3 秒后收起面板
+    // 全部结束后刷新文件列表，3 秒后收起面板
+    // 图片缩略图在服务端上传完成前已同步生成，无需延迟二次刷新
     if (this.items.every(i => i.status === 'done' || i.status === 'error')) {
-      // 立即刷新一次（显示文件卡片，缩略图可能还没生成）
       if (state.currentProject && state.currentCategory) renderFiles();
-      // 2 秒后再刷一次，让 sharp/ffmpeg 生成缩略图后能显示出来
-      setTimeout(() => {
-        if (state.currentProject && state.currentCategory) renderFiles();
-      }, 2000);
       this.dismissTimer = setTimeout(() => this._dismiss(), 3000);
     }
   },

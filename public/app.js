@@ -283,33 +283,116 @@ function openLightbox(src) {
   document.getElementById('lightbox').classList.remove('hidden');
 }
 
-// ── upload ────────────────────────────────────────────────────────
-async function handleFiles(fileList) {
-  if (!state.currentProject || !state.currentCategory) return;
-  const { id: projectId }  = state.currentProject;
-  const { id: categoryId } = state.currentCategory;
+// ── upload queue ──────────────────────────────────────────────────
+// 最多同时跑 3 个上传，用户可以正常浏览，队列在后台跑
+const uq = {
+  items:         [],   // { id, file, url, status, progress, name }
+  active:        0,
+  MAX_CONCURRENT: 3,
+  dismissTimer:  null,
+  _idSeq:        0,
 
-  const files    = Array.from(fileList);
-  const progress = document.getElementById('uploadProgress');
-  const fill     = document.getElementById('progressFill');
-  const text     = document.getElementById('progressText');
-  progress.classList.remove('hidden');
-
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i];
-    text.textContent = `上传中 ${i + 1}/${files.length}：${f.name}`;
-    try {
-      await uploadFile(`/api/upload/${projectId}/${categoryId}`, f, pct => {
-        fill.style.width = pct + '%';
+  // 把一批文件加入队列并启动
+  enqueue(files, projectId, categoryId) {
+    clearTimeout(this.dismissTimer);
+    files.forEach(f => {
+      this.items.push({
+        id:       ++this._idSeq,
+        file:     f,
+        url:      `/api/upload/${projectId}/${categoryId}`,
+        status:   'waiting',   // waiting | uploading | done | error
+        progress: 0,
+        name:     f.name,
+        destProject:  projectId,
+        destCategory: categoryId,
       });
-    } catch (e) {
-      alert(`「${f.name}」上传失败：${e.message}`);
-    }
-  }
+    });
+    this._render();
+    this._pump();
+  },
 
-  progress.classList.add('hidden');
-  fill.style.width = '0%';
-  await renderFiles();
+  // 启动尽可能多的并发上传
+  _pump() {
+    while (this.active < this.MAX_CONCURRENT) {
+      const next = this.items.find(i => i.status === 'waiting');
+      if (!next) break;
+      this._upload(next);
+    }
+  },
+
+  async _upload(item) {
+    this.active++;
+    item.status = 'uploading';
+    this._render();
+    try {
+      await uploadFile(item.url, item.file, pct => {
+        item.progress = pct;
+        this._render();
+      });
+      item.progress = 100;
+      item.status = 'done';
+    } catch (e) {
+      item.status = 'error';
+      item.progress = 100;
+    }
+    this.active--;
+    this._render();
+    this._pump();
+
+    // 全部结束后刷新文件列表，并 3 秒后收起面板
+    if (this.items.every(i => i.status === 'done' || i.status === 'error')) {
+      // 只刷新当前正在看的分类
+      if (state.currentProject && state.currentCategory) renderFiles();
+      this.dismissTimer = setTimeout(() => this._dismiss(), 3000);
+    }
+  },
+
+  _dismiss() {
+    document.getElementById('uploadQueue').classList.add('hidden');
+    this.items = [];
+    this._render();
+  },
+
+  _render() {
+    const panel = document.getElementById('uploadQueue');
+    if (!panel) return;
+    if (this.items.length === 0) { panel.classList.add('hidden'); return; }
+
+    panel.classList.remove('hidden');
+
+    const done  = this.items.filter(i => i.status === 'done').length;
+    const total = this.items.length;
+    document.getElementById('uqCount').textContent = `${done} / ${total}`;
+
+    const iconMap = { waiting: '⏳', uploading: '⬆️', done: '✅', error: '❌' };
+    const pctText = i => {
+      if (i.status === 'waiting')   return '等待';
+      if (i.status === 'done')      return '完成';
+      if (i.status === 'error')     return '失败';
+      return i.progress + '%';
+    };
+
+    document.getElementById('uqList').innerHTML = this.items.map(i => `
+      <li class="uq-item ${i.status}" data-id="${i.id}">
+        <span class="uq-item-icon">${iconMap[i.status]}</span>
+        <div class="uq-item-body">
+          <div class="uq-item-name" title="${i.name}">${i.name}</div>
+          <div class="uq-item-bar">
+            <div class="uq-item-fill" style="width:${i.progress}%"></div>
+          </div>
+        </div>
+        <span class="uq-item-pct">${pctText(i)}</span>
+      </li>
+    `).join('');
+  }
+};
+
+// 入口：把选中的文件交给队列
+function handleFiles(fileList) {
+  if (!state.currentProject || !state.currentCategory) return;
+  const files = Array.from(fileList).filter(f => f.size > 0);
+  if (!files.length) return;
+  uq.enqueue(files, state.currentProject.id, state.currentCategory.id);
 }
 
 // ── init ──────────────────────────────────────────────────────────
@@ -390,6 +473,11 @@ async function init() {
     document.getElementById('dateFrom').value = '';
     document.getElementById('dateTo').value   = '';
     renderFiles();
+  });
+
+  // 队列面板收起 / 展开
+  document.getElementById('uqToggle').addEventListener('click', () => {
+    document.getElementById('uploadQueue').classList.toggle('minimised');
   });
 
   // lightbox close

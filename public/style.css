@@ -5811,14 +5811,16 @@ a { color: inherit; }
   box-shadow: var(--shadow-2);
 }
 .qr-url {
-  font-size: 11px;
-  color: var(--ink-4);
-  word-break: break-all;
-  padding: 6px 12px;
-  background: var(--paper-soft);
-  border-radius: 6px;
-  margin-bottom: 16px;
-  font-family: var(--font-mono);
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: .03em;
+  padding: 10px 22px;
+  background: var(--ink);
+  border-radius: 999px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(28,25,23,.25);
 }
 .qr-fallback {
   font-size: 13px;

@@ -369,15 +369,14 @@ async function deleteSelected() {
 }
 
 // ── QR code ───────────────────────────────────────────────────────
-function getShareUrl() {
-  const base = location.origin + location.pathname;
-  return `${base}?p=${state.currentProject.id}&c=${state.currentCategory.id}`;
+function getUploadUrl() {
+  // 指向专属上传页，扫码后直接进入选文件流程
+  return `${location.origin}/upload.html?p=${state.currentProject.id}&c=${state.currentCategory.id}`;
 }
 
 function showQrModal() {
-  const url = getShareUrl();
+  const url = getUploadUrl();
   document.getElementById('qrUrl').textContent = url;
-  // 服务端生成，无 CDN 依赖，点开即显示
   document.getElementById('qrContainer').innerHTML =
     `<img src="/api/qr?data=${encodeURIComponent(url)}" width="240" height="240" alt="二维码" style="border-radius:8px">`;
   document.getElementById('qrModal').classList.remove('hidden');

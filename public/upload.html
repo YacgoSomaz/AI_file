@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>上传文件</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f4f0;
+      --surface: #ffffff;
+      --accent: #2d6a4f;
+      --accent-light: #e8f5ee;
+      --text: #1a1a1a;
+      --text-sub: #666;
+      --border: #e0ddd6;
+      --radius: 16px;
+      --danger: #c0392b;
+    }
+
+    body {
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px env(safe-area-inset-bottom, 16px);
+      color: var(--text);
+    }
+
+    /* ── header ── */
+    .page-header {
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .destination {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 18px;
+      font-size: 14px;
+      color: var(--text-sub);
+    }
+    .destination strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .destination .arrow {
+      opacity: 0.4;
+      font-size: 12px;
+    }
+
+    /* ── upload button ── */
+    .upload-zone {
+      width: 100%;
+      max-width: 480px;
+    }
+
+    .upload-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      width: 100%;
+      min-height: 240px;
+      background: var(--surface);
+      border: 2.5px dashed #b5c9bf;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .upload-label:active {
+      background: var(--accent-light);
+      border-color: var(--accent);
+    }
+
+    .upload-label .icon {
+      font-size: 56px;
+      line-height: 1;
+    }
+    .upload-label .main-text {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .upload-label .sub-text {
+      font-size: 13px;
+      color: var(--text-sub);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    #fileInput { display: none; }
+
+    /* ── progress list ── */
+    .upload-list {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .upload-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .upload-item .item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .upload-item .item-name {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .upload-item .item-status {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .upload-item .item-status.done   { color: var(--accent); }
+    .upload-item .item-status.error  { color: var(--danger); }
+    .upload-item .item-status.uploading { color: var(--text-sub); }
+
+    .progress-bar {
+      height: 4px;
+      background: #e5e5e5;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.2s;
+    }
+
+    /* ── summary ── */
+    .summary {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: var(--accent-light);
+      border: 1px solid #b5c9bf;
+      border-radius: 12px;
+      font-size: 14px;
+      color: var(--accent);
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+    .summary.show { display: block; }
+
+    /* ── error state ── */
+    .error-msg {
+      width: 100%;
+      max-width: 480px;
+      margin-top: 20px;
+      padding: 16px;
+      background: #fdecea;
+      border: 1px solid #f5c6c2;
+      border-radius: 12px;
+      color: var(--danger);
+      font-size: 14px;
+      text-align: center;
+      display: none;
+    }
+    .error-msg.show { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="destination" id="destination">
+    <span>正在加载…</span>
+  </div>
+</div>
+
+<div class="upload-zone">
+  <label class="upload-label" for="fileInput">
+    <span class="icon">📂</span>
+    <span class="main-text">点击选择文件</span>
+    <span class="sub-text">照片 · 视频 · 文档<br>支持同时选择多个</span>
+  </label>
+  <input type="file" id="fileInput" multiple
+    accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.pdf,.docx,.xlsx,.pptx">
+</div>
+
+<div class="error-msg" id="errorMsg"></div>
+<div class="summary" id="summary"></div>
+<div class="upload-list" id="uploadList"></div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const projectId  = params.get('p');
+  const categoryId = params.get('c');
+
+  const destEl    = document.getElementById('destination');
+  const errorMsg  = document.getElementById('errorMsg');
+  const summaryEl = document.getElementById('summary');
+  const listEl    = document.getElementById('uploadList');
+  const fileInput = document.getElementById('fileInput');
+
+  // ── load destination info ──────────────────────────────
+  async function loadInfo() {
+    if (!projectId || !categoryId) {
+      showError('链接无效，缺少项目或分类信息');
+      return;
+    }
+    try {
+      const r = await fetch(`/api/projects/${projectId}/categories/${categoryId}/files`);
+      if (!r.ok) throw new Error('加载失败');
+      const d = await r.json();
+      destEl.innerHTML =
+        `<strong>${d.project.name}</strong><span class="arrow">›</span><strong>${d.category.name}</strong>`;
+    } catch {
+      showError('无法加载目标信息，请检查链接是否正确');
+    }
+  }
+
+  function showError(msg) {
+    errorMsg.textContent = msg;
+    errorMsg.classList.add('show');
+  }
+
+  // ── file upload ────────────────────────────────────────
+  fileInput.addEventListener('change', () => {
+    const files = [...fileInput.files];
+    if (!files.length) return;
+    fileInput.value = '';           // allow re-select same files
+    summaryEl.classList.remove('show');
+    files.forEach(uploadFile);
+  });
+
+  let doneCount = 0;
+  let totalCount = 0;
+
+  function uploadFile(file) {
+    totalCount++;
+
+    // create item row
+    const item = document.createElement('div');
+    item.className = 'upload-item';
+    item.innerHTML = `
+      <div class="item-top">
+        <span class="item-name">${escHtml(file.name)}</span>
+        <span class="item-status uploading" data-status>上传中…</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" data-fill style="width:0%"></div></div>
+    `;
+    listEl.prepend(item);
+
+    const statusEl = item.querySelector('[data-status]');
+    const fillEl   = item.querySelector('[data-fill]');
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/upload/${projectId}/${categoryId}`);
+
+    xhr.upload.addEventListener('progress', e => {
+      if (e.lengthComputable) {
+        const pct = Math.round(e.loaded / e.total * 100);
+        fillEl.style.width = pct + '%';
+        statusEl.textContent = pct + '%';
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        fillEl.style.width = '100%';
+        statusEl.textContent = '✓ 完成';
+        statusEl.className = 'item-status done';
+        // remove progress bar
+        item.querySelector('.progress-bar').remove();
+        doneCount++;
+        checkAllDone();
+      } else {
+        let msg = '上传失败';
+        try { msg = JSON.parse(xhr.responseText).error || msg; } catch {}
+        statusEl.textContent = '✗ ' + msg;
+        statusEl.className = 'item-status error';
+        item.querySelector('.progress-bar').remove();
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      statusEl.textContent = '✗ 网络错误';
+      statusEl.className = 'item-status error';
+      item.querySelector('.progress-bar').remove();
+    });
+
+    xhr.send(fd);
+  }
+
+  function checkAllDone() {
+    // count items still uploading
+    const uploading = listEl.querySelectorAll('.item-status.uploading').length;
+    if (uploading === 0 && doneCount > 0) {
+      summaryEl.textContent = `✓ 已成功上传 ${doneCount} 个文件`;
+      summaryEl.classList.add('show');
+    }
+  }
+
+  function escHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  loadInfo();
+</script>
+</body>
+</html>

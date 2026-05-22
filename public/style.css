@@ -5304,7 +5304,40 @@ a { color: inherit; }
 
 @media (max-width: 420px) {
   #projectGrid, #categoryGrid { grid-template-columns: 1fr 1fr; }
-  #fileGrid { grid-template-columns: 1fr 1fr; }
+  /* 手机竖屏：固定两列，确保每张图足够大（约160px） */
+  #fileGrid { grid-template-columns: 1fr 1fr; gap: 10px; }
+}
+
+/* ── 触屏设备：file-actions 常驻显示 ──────────────────────────────
+   `:hover` 在触屏上不可靠，下载按钮和删除按钮必须始终可见。
+   用 (hover: none) 媒体特性区分真实触屏和鼠标设备。          */
+@media (hover: none) {
+  .file-actions {
+    opacity: 1;
+    transform: none;
+    /* 移至卡片底部，不遮挡缩略图 */
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 6px 8px 4px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .file-actions a[download] {
+    background: none;
+    color: var(--ink-2);
+    font-size: 13px;
+    padding: 4px 2px;
+  }
+  /* 触屏上删除按钮用文字，圆形按钮太小不易触摸 */
+  .btn-delete-card {
+    width: auto;
+    height: auto;
+    border-radius: var(--r-sm);
+    padding: 4px 8px;
+    font-size: 12px;
+  }
 }
 
 /* utilities */

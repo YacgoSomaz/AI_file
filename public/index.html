@@ -1,163 +1,390 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>莫钦麟专属站</title>
+<html lang="zh-CN"><head>
   <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>档案库 · Archive</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+
+
 </head>
 <body>
 
-  <!-- 顶部导航 -->
-  <header class="topbar">
-    <div class="topbar-left">👑 莫钦麟专属站</div>
-    <div class="topbar-right">
-      <span id="unlockBadge" class="unlock-badge" style="display:none">🔓 已解锁</span>
-      <span id="adminBadge" class="admin-badge" style="display:none">⚙️ 管理员</span>
-      <button id="cardBtn" class="btn-outline" onclick="openCardModal()">🎫 卡密解锁</button>
-      <button id="loginBtn" class="btn-outline" onclick="openLogin()">管理员登录</button>
-      <button id="logoutBtn" class="btn-outline" style="display:none" onclick="doLogout()">退出</button>
+
+
+<div class="app">
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">档案<em>库</em></span>
+        <span class="brand-sub">Archive · 内部档案系统</span>
+      </div>
+
+      <div class="crumb">
+        <button id="btnBack" class="hidden" aria-label="返回上一级" title="返回">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <h1 id="headerTitle" class="hidden">所有项目</h1>
+      </div>
+
+      <div class="header-spacer"></div>
+
+      <button id="btnAdmin" aria-label="管理员模式" title="管理员模式">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
-  <!-- 分区标签 -->
-  <div class="zone-tabs" id="zoneTabs"></div>
+  <!-- ===================== HOME / 项目列表 ===================== -->
+  <section id="viewHome" class="view">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Projects · 项目总览</span>
+        <h2>所有<em>项目</em></h2>
+      </div>
+      <div class="section-meta">
+        共 <strong id="projectCount">6</strong> 个项目
+      </div>
+    </div>
 
-  <!-- 主布局 -->
-  <div class="layout">
+    <div id="projectGrid">
 
-    <!-- 文件主区域 -->
-    <div class="main-area">
-      <div class="upload-zone" id="uploadZone">
-        <div class="upload-icon">⬆️</div>
-        <p>拖拽文件到这里，或 <label for="fileInput" class="upload-link">点击选择文件</label></p>
-        <p class="hint">支持 PNG、JPG 图片 和 Excel (.xlsx / .xls)，最大 50MB · 上传免费开放</p>
-        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.xlsx,.xls" multiple hidden>
-        <div class="progress-wrap" id="progressWrap" style="display:none">
-          <div class="progress-bar" id="progressBar"></div>
+      <!-- 示例卡片：JS 渲染时可清空替换 -->
+      <article class="card project-card" data-id="p1">
+        <div class="pc-top">
+          <span class="pc-index">PRJ · 001</span>
+          <span class="pc-dot" aria-hidden="true"></span>
         </div>
-        <div id="uploadMsg"></div>
-      </div>
-
-      <div class="section-title">
-        <span id="sectionLabel">文件列表</span>
-        <span class="file-count" id="fileCount"></span>
-      </div>
-      <div class="file-grid" id="fileGrid">
-        <div class="empty-tip">加载中...</div>
-      </div>
-    </div>
-
-    <!-- 聊天侧边栏 -->
-    <aside class="chat-sidebar" id="chatSidebar">
-      <div class="chat-header">
-        💬 公共聊天室
-        <button class="chat-toggle-btn" onclick="toggleChat()">‹</button>
-      </div>
-      <div class="chat-messages" id="chatMessages">
-        <div class="chat-loading">加载消息中...</div>
-      </div>
-      <div class="chat-input-area">
-        <input type="text" id="chatNickname" placeholder="你的昵称" maxlength="20" class="chat-nick-input">
-        <div class="chat-send-row">
-          <textarea id="chatText" placeholder="说点什么…" maxlength="500" rows="2" class="chat-textarea"></textarea>
-          <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+        <h3 class="pc-title">滨江壹号 · 住宅综合体</h3>
+        <div class="pc-stats">
+          <div class="pc-stat"><span class="pc-stat-num">12</span><span class="pc-stat-label">分类</span></div>
+          <div class="pc-stat"><span class="pc-stat-num">348</span><span class="pc-stat-label">文件</span></div>
         </div>
+        <button class="btn-delete-card" title="删除" hidden="">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6M14 11v6"></path></svg>
+        </button>
+      </article>
+
+      <article class="card project-card" data-id="p2">
+        <div class="pc-top">
+          <span class="pc-index">PRJ · 002</span>
+          <span class="pc-dot" aria-hidden="true"></span>
+        </div>
+        <h3 class="pc-title">云栖商务中心 T3 塔楼</h3>
+        <div class="pc-stats">
+          <div class="pc-stat"><span class="pc-stat-num">8</span><span class="pc-stat-label">分类</span></div>
+          <div class="pc-stat"><span class="pc-stat-num">214</span><span class="pc-stat-label">文件</span></div>
+        </div>
+      </article>
+
+      <article class="card project-card" data-id="p3">
+        <div class="pc-top">
+          <span class="pc-index">PRJ · 003</span>
+          <span class="pc-dot" aria-hidden="true"></span>
+        </div>
+        <h3 class="pc-title">青云麓 · 山地度假酒店</h3>
+        <div class="pc-stats">
+          <div class="pc-stat"><span class="pc-stat-num">15</span><span class="pc-stat-label">分类</span></div>
+          <div class="pc-stat"><span class="pc-stat-num">512</span><span class="pc-stat-label">文件</span></div>
+        </div>
+      </article>
+
+      <article class="card project-card" data-id="p4">
+        <div class="pc-top">
+          <span class="pc-index">PRJ · 004</span>
+          <span class="pc-dot" aria-hidden="true"></span>
+        </div>
+        <h3 class="pc-title">中关村南路办公改造</h3>
+        <div class="pc-stats">
+          <div class="pc-stat"><span class="pc-stat-num">6</span><span class="pc-stat-label">分类</span></div>
+          <div class="pc-stat"><span class="pc-stat-num">97</span><span class="pc-stat-label">文件</span></div>
+        </div>
+      </article>
+
+      <article class="card project-card" data-id="p5">
+        <div class="pc-top">
+          <span class="pc-index">PRJ · 005</span>
+          <span class="pc-dot" aria-hidden="true"></span>
+        </div>
+        <h3 class="pc-title">海岸线文创园区一期</h3>
+        <div class="pc-stats">
+          <div class="pc-stat"><span class="pc-stat-num">10</span><span class="pc-stat-label">分类</span></div>
+          <div class="pc-stat"><span class="pc-stat-num">263</span><span class="pc-stat-label">文件</span></div>
+        </div>
+      </article>
+
+      <!-- 新建项目 -->
+      <button id="btnNewProject" class="card card-new" type="button">
+        <span class="plus">+</span>
+        <span class="label">新建项目</span>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ===================== PROJECT / 分类列表 ===================== -->
+  <section id="viewProject" class="view hidden">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Categories · 分类</span>
+        <h2>项目<em>分类</em></h2>
       </div>
-    </aside>
-  </div>
-
-  <button class="chat-fab" id="chatFab" style="display:none" onclick="toggleChat()">💬</button>
-
-  <!-- 卡密解锁弹窗 -->
-  <div class="modal-bg" id="cardModal" style="display:none">
-    <div class="modal">
-      <h2>🎫 卡密解锁</h2>
-      <p class="modal-desc">输入卡密后即可查看和下载文件</p>
-      <input type="text" id="cardCodeInput" placeholder="XXXX-XXXX-XXXX-XXXX" class="modal-input card-code-input" maxlength="19" spellcheck="false" autocomplete="off">
-      <div id="cardErr" class="login-err"></div>
-      <div class="modal-btns">
-        <button class="btn-primary" onclick="verifyCard()">解锁</button>
-        <button class="btn-ghost" onclick="closeCardModal()">取消</button>
+      <div class="section-meta">
+        共 <strong id="categoryCount">0</strong> 个分类
       </div>
     </div>
-  </div>
 
-  <!-- 管理员登录弹窗 -->
-  <div class="modal-bg" id="loginModal" style="display:none">
-    <div class="modal">
-      <h2>管理员登录</h2>
-      <input type="text" id="loginUser" placeholder="用户名" class="modal-input">
-      <input type="password" id="loginPass" placeholder="密码" class="modal-input">
-      <div id="loginErr" class="login-err"></div>
-      <div class="modal-btns">
-        <button class="btn-primary" onclick="doLogin()">登录</button>
-        <button class="btn-ghost" onclick="closeLogin()">取消</button>
+    <div id="categoryGrid">
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 01</div>
+        <h3 class="cc-title">方案设计</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">42</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 02</div>
+        <h3 class="cc-title">施工图纸</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">128</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 03</div>
+        <h3 class="cc-title">现场照片</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">86</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 04</div>
+        <h3 class="cc-title">合同与函件</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">34</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 05</div>
+        <h3 class="cc-title">汇报材料</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">19</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <article class="card category-card">
+        <div class="cc-tag">CAT / 06</div>
+        <h3 class="cc-title">视频与航拍</h3>
+        <div class="cc-foot">
+          <span><span class="cc-count">11</span> 个文件</span>
+          <span class="cc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></span>
+        </div>
+      </article>
+
+      <button id="btnNewCategory" class="card card-new" type="button">
+        <span class="plus">+</span>
+        <span class="label">新建分类</span>
+      </button>
+
+    </div>
+  </section>
+
+  <!-- ===================== FILES / 文件网格 ===================== -->
+  <section id="viewFiles" class="view hidden">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Files · 文件</span>
+        <h2>文件<em>列表</em></h2>
+      </div>
+      <div class="section-meta">
+        共 <strong>0</strong> 个文件
       </div>
     </div>
-  </div>
 
-  <!-- 管理员面板：卡密管理 -->
-  <div class="modal-bg" id="adminPanel" style="display:none">
-    <div class="modal admin-panel">
-      <div class="admin-panel-head">
-        <h2>⚙️ 卡密管理</h2>
-        <button class="close-x" onclick="closeAdminPanel()">✕</button>
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="tb-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input id="inputSearch" type="text" placeholder="搜索文件名 / 类型 / 备注">
       </div>
-
-      <!-- 生成卡密 -->
-      <div class="gen-card-area">
-        <input type="text" id="genCustomCode" placeholder="自定义卡密（留空自动生成）" class="modal-input card-code-input" style="margin-bottom:0;flex:1.2" maxlength="19" spellcheck="false" autocomplete="off">
-        <input type="text" id="genLabel" placeholder="备注（如：张三）" class="modal-input" style="margin-bottom:0;flex:1">
-        <select id="genMaxUses" class="modal-select">
-          <option value="0">不限次数</option>
-          <option value="1">1次</option>
-          <option value="3">3次</option>
-          <option value="5">5次</option>
-          <option value="10">10次</option>
-          <option value="20">20次</option>
-          <option value="50">50次</option>
-        </select>
-        <button class="btn-primary" style="white-space:nowrap" onclick="generateCard()">＋ 生成卡密</button>
+      <div class="tb-dates">
+        <label for="dateFrom">日期</label>
+        <input id="dateFrom" type="date">
+        <span class="dash">—</span>
+        <input id="dateTo" type="date">
       </div>
+      <button id="btnClearFilter" class="btn btn-ghost" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        清除筛选
+      </button>
+      <button id="btnUpload" class="btn btn-clay" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        上传文件
+      </button>
+      <input id="fileInput" type="file" multiple="" hidden="">
+    </div>
 
-      <!-- 卡密列表 -->
-      <div class="card-list" id="cardList">
-        <div class="chat-loading">加载中...</div>
+    <!-- Drop zone wraps file grid -->
+    <div id="dropZone">
+      <div id="fileGrid">
+
+        <!-- 示例：图片 -->
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-image">Image</span>
+            <img src="1f3a25d2-c10b-438f-b801-7f6bac65804d" alt="">
+            <div class="file-actions">
+              <button class="btn-delete-card" title="删除" hidden="">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="file-info">
+            <p class="file-name">立面渲染_南向_v3.jpg</p>
+            <div class="file-meta"><span>JPG</span><span class="dot"></span><span>2.4 MB</span><span class="dot"></span><span>04-12</span></div>
+          </div>
+        </article>
+
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-image">Image</span>
+            <img src="3096513f-467b-42b8-bd36-7e6ff3bd57e6" alt="">
+          </div>
+          <div class="file-info">
+            <p class="file-name">大堂效果_最终稿.png</p>
+            <div class="file-meta"><span>PNG</span><span class="dot"></span><span>5.1 MB</span><span class="dot"></span><span>04-10</span></div>
+          </div>
+        </article>
+
+        <!-- 视频 -->
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-video">Video</span>
+            <img src="aa297913-33bd-4660-a45d-d8edb572500d" alt="">
+          </div>
+          <div class="file-info">
+            <p class="file-name">航拍_工地04月.mp4</p>
+            <div class="file-meta"><span>MP4</span><span class="dot"></span><span>148 MB</span><span class="dot"></span><span>04-08</span></div>
+          </div>
+        </article>
+
+        <!-- 文档 -->
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-doc">Doc</span>
+            <div class="file-thumb-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="13" y2="17"></line></svg>
+              <span class="ext">PDF</span>
+            </div>
+          </div>
+          <div class="file-info">
+            <p class="file-name">施工组织设计_报审版.pdf</p>
+            <div class="file-meta"><span>PDF</span><span class="dot"></span><span>8.7 MB</span><span class="dot"></span><span>04-06</span></div>
+          </div>
+        </article>
+
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-image">Image</span>
+            <img src="c9dec381-bd30-4ab0-9348-4de525b8d84a" alt="">
+          </div>
+          <div class="file-info">
+            <p class="file-name">总图_红线范围.jpg</p>
+            <div class="file-meta"><span>JPG</span><span class="dot"></span><span>3.0 MB</span><span class="dot"></span><span>04-05</span></div>
+          </div>
+        </article>
+
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-doc">Doc</span>
+            <div class="file-thumb-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span class="ext">DWG</span>
+            </div>
+          </div>
+          <div class="file-info">
+            <p class="file-name">A-04 平面图_3F.dwg</p>
+            <div class="file-meta"><span>DWG</span><span class="dot"></span><span>1.2 MB</span><span class="dot"></span><span>04-03</span></div>
+          </div>
+        </article>
+
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-image">Image</span>
+            <img src="1a0d1c20-886f-4fd1-adcd-030317e69f2f" alt="">
+          </div>
+          <div class="file-info">
+            <p class="file-name">现场_主入口04.jpg</p>
+            <div class="file-meta"><span>JPG</span><span class="dot"></span><span>4.2 MB</span><span class="dot"></span><span>04-01</span></div>
+          </div>
+        </article>
+
+        <article class="file-card">
+          <div class="file-thumb">
+            <span class="type-badge type-doc">Doc</span>
+            <div class="file-thumb-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span class="ext">XLSX</span>
+            </div>
+          </div>
+          <div class="file-info">
+            <p class="file-name">工程量清单_4月.xlsx</p>
+            <div class="file-meta"><span>XLSX</span><span class="dot"></span><span>620 KB</span><span class="dot"></span><span>03-28</span></div>
+          </div>
+        </article>
+
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- 图片查看器 -->
-  <div class="viewer-overlay" id="imageViewer" style="display:none">
-    <div class="viewer-toolbar">
-      <span id="imgTitle" class="viewer-title"></span>
-      <div class="viewer-tools">
-        <button onclick="zoom(0.25)">🔍+</button>
-        <button onclick="zoom(-0.25)">🔍−</button>
-        <button onclick="resetZoom()">1:1</button>
-        <span id="zoomLabel">100%</span>
-      </div>
-      <button id="viewerDownloadBtn" class="dl-btn" onclick="viewerDownload()">⬇ 下载</button>
-      <button class="close-btn" onclick="closeViewer()">✕</button>
-    </div>
-    <div class="viewer-body" id="viewerBody">
-      <img id="viewerImg" src="" alt="" draggable="false">
+</div>
+
+<!-- ===================== Upload Progress ===================== -->
+<div id="uploadProgress" class="hidden">
+  <div id="progressText"><span>上传中…</span><span>0 / 0</span></div>
+  <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+</div>
+
+<!-- ===================== Modal ===================== -->
+<div id="modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-panel">
+    <h3 id="modalTitle">新建项目</h3>
+    <input id="modalInput" type="text" placeholder="请输入名称" autocomplete="off">
+    <div class="modal-actions">
+      <button id="modalCancel" type="button">取消</button>
+      <button id="modalConfirm" type="button">确认</button>
     </div>
   </div>
+</div>
 
-  <!-- Excel 查看器 -->
-  <div class="viewer-overlay" id="excelViewer" style="display:none">
-    <div class="viewer-toolbar">
-      <span id="excelTitle" class="viewer-title"></span>
-      <button class="close-btn" onclick="closeExcel()">✕</button>
-    </div>
-    <div id="sheetTabsWrap"></div>
-    <div class="excel-body" id="excelBody"></div>
-  </div>
+<!-- ===================== Lightbox ===================== -->
+<div id="lightbox" class="hidden">
+  <button id="lightboxClose" type="button" aria-label="关闭">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+  </button>
+  <img id="lightboxImg" src="" alt="预览">
+</div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+
   <script src="app.js"></script>
 </body>
 </html>
+
+

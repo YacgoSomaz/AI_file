@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>莫钦麟专属站</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 顶部导航 -->
+  <header class="topbar">
+    <div class="topbar-left">👑 莫钦麟专属站</div>
+    <div class="topbar-right">
+      <span id="unlockBadge" class="unlock-badge" style="display:none">🔓 已解锁</span>
+      <span id="adminBadge" class="admin-badge" style="display:none">⚙️ 管理员</span>
+      <button id="cardBtn" class="btn-outline" onclick="openCardModal()">🎫 卡密解锁</button>
+      <button id="loginBtn" class="btn-outline" onclick="openLogin()">管理员登录</button>
+      <button id="logoutBtn" class="btn-outline" style="display:none" onclick="doLogout()">退出</button>
+    </div>
+  </header>
+
+  <!-- 分区标签 -->
+  <div class="zone-tabs" id="zoneTabs"></div>
+
+  <!-- 主布局 -->
+  <div class="layout">
+
+    <!-- 文件主区域 -->
+    <div class="main-area">
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">⬆️</div>
+        <p>拖拽文件到这里，或 <label for="fileInput" class="upload-link">点击选择文件</label></p>
+        <p class="hint">支持 PNG、JPG 图片 和 Excel (.xlsx / .xls)，最大 50MB · 上传免费开放</p>
+        <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.xlsx,.xls" multiple hidden>
+        <div class="progress-wrap" id="progressWrap" style="display:none">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div id="uploadMsg"></div>
+      </div>
+
+      <div class="section-title">
+        <span id="sectionLabel">文件列表</span>
+        <span class="file-count" id="fileCount"></span>
+      </div>
+      <div class="file-grid" id="fileGrid">
+        <div class="empty-tip">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 聊天侧边栏 -->
+    <aside class="chat-sidebar" id="chatSidebar">
+      <div class="chat-header">
+        💬 公共聊天室
+        <button class="chat-toggle-btn" onclick="toggleChat()">‹</button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-loading">加载消息中...</div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" id="chatNickname" placeholder="你的昵称" maxlength="20" class="chat-nick-input">
+        <div class="chat-send-row">
+          <textarea id="chatText" placeholder="说点什么…" maxlength="500" rows="2" class="chat-textarea"></textarea>
+          <button class="chat-send-btn" onclick="sendMessage()">发送</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <button class="chat-fab" id="chatFab" style="display:none" onclick="toggleChat()">💬</button>
+
+  <!-- 卡密解锁弹窗 -->
+  <div class="modal-bg" id="cardModal" style="display:none">
+    <div class="modal">
+      <h2>🎫 卡密解锁</h2>
+      <p class="modal-desc">输入卡密后即可查看和下载文件</p>
+      <input type="text" id="cardCodeInput" placeholder="XXXX-XXXX-XXXX-XXXX" class="modal-input card-code-input" maxlength="19" spellcheck="false" autocomplete="off">
+      <div id="cardErr" class="login-err"></div>
+      <div class="modal-btns">
+        <button class="btn-primary" onclick="verifyCard()">解锁</button>
+        <button class="btn-ghost" onclick="closeCardModal()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员登录弹窗 -->
+  <div class="modal-bg" id="loginModal" style="display:none">
+    <div class="modal">
+      <h2>管理员登录</h2>
+      <input type="text" id="loginUser" placeholder="用户名" class="modal-input">
+      <input type="password" id="loginPass" placeholder="密码" class="modal-input">
+      <div id="loginErr" class="login-err"></div>
+      <div class="modal-btns">
+        <button class="btn-primary" onclick="doLogin()">登录</button>
+        <button class="btn-ghost" onclick="closeLogin()">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员面板：卡密管理 -->
+  <div class="modal-bg" id="adminPanel" style="display:none">
+    <div class="modal admin-panel">
+      <div class="admin-panel-head">
+        <h2>⚙️ 卡密管理</h2>
+        <button class="close-x" onclick="closeAdminPanel()">✕</button>
+      </div>
+
+      <!-- 生成卡密 -->
+      <div class="gen-card-area">
+        <input type="text" id="genCustomCode" placeholder="自定义卡密（留空自动生成）" class="modal-input card-code-input" style="margin-bottom:0;flex:1.2" maxlength="19" spellcheck="false" autocomplete="off">
+        <input type="text" id="genLabel" placeholder="备注（如：张三）" class="modal-input" style="margin-bottom:0;flex:1">
+        <select id="genMaxUses" class="modal-select">
+          <option value="0">不限次数</option>
+          <option value="1">1次</option>
+          <option value="3">3次</option>
+          <option value="5">5次</option>
+          <option value="10">10次</option>
+          <option value="20">20次</option>
+          <option value="50">50次</option>
+        </select>
+        <button class="btn-primary" style="white-space:nowrap" onclick="generateCard()">＋ 生成卡密</button>
+      </div>
+
+      <!-- 卡密列表 -->
+      <div class="card-list" id="cardList">
+        <div class="chat-loading">加载中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图片查看器 -->
+  <div class="viewer-overlay" id="imageViewer" style="display:none">
+    <div class="viewer-toolbar">
+      <span id="imgTitle" class="viewer-title"></span>
+      <div class="viewer-tools">
+        <button onclick="zoom(0.25)">🔍+</button>
+        <button onclick="zoom(-0.25)">🔍−</button>
+        <button onclick="resetZoom()">1:1</button>
+        <span id="zoomLabel">100%</span>
+      </div>
+      <button id="viewerDownloadBtn" class="dl-btn" onclick="viewerDownload()">⬇ 下载</button>
+      <button class="close-btn" onclick="closeViewer()">✕</button>
+    </div>
+    <div class="viewer-body" id="viewerBody">
+      <img id="viewerImg" src="" alt="" draggable="false">
+    </div>
+  </div>
+
+  <!-- Excel 查看器 -->
+  <div class="viewer-overlay" id="excelViewer" style="display:none">
+    <div class="viewer-toolbar">
+      <span id="excelTitle" class="viewer-title"></span>
+      <button class="close-btn" onclick="closeExcel()">✕</button>
+    </div>
+    <div id="sheetTabsWrap"></div>
+    <div class="excel-body" id="excelBody"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

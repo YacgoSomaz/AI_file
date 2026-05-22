@@ -237,8 +237,25 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         上传文件
       </button>
+      <button id="btnQrUpload" class="btn btn-ghost hidden" type="button" title="手机扫码上传">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
+        扫码上传
+      </button>
+      <button id="btnSelect" class="btn btn-ghost hidden" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        批量选择
+      </button>
       <input id="fileInput" type="file" multiple="" hidden=""
         accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.pdf,.docx,.xlsx,.pptx">
+    </div>
+    <!-- 批量操作条：进入选择模式后显示 -->
+    <div id="batchBar" class="batch-bar hidden">
+      <span id="selectedCount" class="batch-count">已选 0 项</span>
+      <div class="batch-actions">
+        <button id="btnSelectAll" class="btn btn-ghost" type="button">全选</button>
+        <button id="btnDeleteSelected" class="btn btn-danger" type="button" disabled>删除已选</button>
+        <button id="btnCancelSelect" class="btn btn-ghost" type="button">取消</button>
+      </div>
     </div>
 
     <!-- Drop zone wraps file grid -->
@@ -374,6 +391,19 @@
   </div>
 </div>
 
+<!-- ===================== QR Code Modal ===================== -->
+<div id="qrModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+  <div class="modal-panel qr-panel">
+    <h3 id="qrTitle">手机扫码上传</h3>
+    <p class="qr-hint">用微信或相机扫一扫，直接在手机上传文件到当前分类</p>
+    <div id="qrContainer" class="qr-container"></div>
+    <div class="qr-url" id="qrUrl"></div>
+    <div class="modal-actions">
+      <button id="qrClose" class="btn" type="button">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== Lightbox ===================== -->
 <div id="lightbox" class="hidden">
   <button id="lightboxClose" type="button" aria-label="关闭">
@@ -394,6 +424,8 @@
     <ul class="uq-list" id="uqList"></ul>
   </div>
 
+  <!-- QR code 纯 JS 生成，无需构建 -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

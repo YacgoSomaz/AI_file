@@ -1,9 +1,11 @@
 // ── state ─────────────────────────────────────────────────────────
 const state = {
-  isAdmin: false,
-  currentProject: null,   // { id, name }
-  currentCategory: null,  // { id, name }
-  searchTimer: null
+  isAdmin:        false,
+  currentProject:  null,   // { id, name }
+  currentCategory: null,   // { id, name }
+  searchTimer:     null,
+  selectMode:      false,
+  selectedFiles:   new Set(), // 当前选中的文件名集合
 };
 
 // ── API ───────────────────────────────────────────────────────────
@@ -88,7 +90,15 @@ function setHeader(title, showBack) {
 }
 
 // ── home view ─────────────────────────────────────────────────────
+function hideFileButtons() {
+  document.getElementById('btnQrUpload').classList.add('hidden');
+  document.getElementById('btnSelect').classList.add('hidden');
+  document.getElementById('batchBar').classList.add('hidden');
+  if (state.selectMode) { state.selectMode = false; state.selectedFiles.clear(); }
+}
+
 async function loadHome() {
+  hideFileButtons();
   state.currentProject  = null;
   state.currentCategory = null;
   setHeader('公司文件库', false);
@@ -143,6 +153,7 @@ async function loadHome() {
 
 // ── project view ──────────────────────────────────────────────────
 async function loadProject(projectId, projectName) {
+  hideFileButtons();
   state.currentProject  = { id: projectId, name: projectName };
   state.currentCategory = null;
   setHeader(projectName, true);
@@ -199,9 +210,14 @@ async function loadProject(projectId, projectName) {
 
 // ── files view ────────────────────────────────────────────────────
 async function loadFiles(projectId, categoryId, categoryName) {
+  // 退出上一次的选择模式（如从别处返回）
+  if (state.selectMode) exitSelectMode();
   state.currentCategory = { id: categoryId, name: categoryName };
   setHeader(`${state.currentProject.name}  /  ${categoryName}`, true);
   showView('viewFiles');
+  // 显示文件视图专属按钮
+  document.getElementById('btnQrUpload').classList.remove('hidden');
+  if (state.isAdmin) document.getElementById('btnSelect').classList.remove('hidden');
   document.getElementById('inputSearch').value = '';
   document.getElementById('dateFrom').value = '';
   document.getElementById('dateTo').value   = '';
@@ -231,17 +247,20 @@ async function renderFiles() {
 
   files.forEach(f => {
     const card = document.createElement('div');
-    card.className = 'card file-card';
+    const isSelected = state.selectedFiles.has(f.name);
+    card.className = 'card file-card' +
+      (state.selectMode ? ' selectable' : '') +
+      (isSelected ? ' selected' : '');
+    card.dataset.name = f.name;
 
     const thumbContent = f.thumb
       ? `<img src="${f.thumb}" loading="lazy" alt="${f.displayName}">`
       : `<div class="file-thumb-placeholder">${fileIcon(f.type)}</div>`;
 
-    const deleteBtn = state.isAdmin
+    const deleteBtn = state.isAdmin && !state.selectMode
       ? `<button class="btn-delete-card" data-name="${f.name}">删除</button>`
       : '';
 
-    // .type-badge 和 .file-actions 是 .file-card 的直接子元素（position:absolute 覆盖在缩略图上）
     card.innerHTML =
       `<div class="file-thumb">${thumbContent}</div>` +
       `${typeBadge(f.type, f.displayName)}` +
@@ -254,7 +273,13 @@ async function renderFiles() {
         `<div class="file-meta">${formatSize(f.size)} · ${formatDate(f.uploadedAt)}</div>` +
       `</div>`;
 
-    // image click → lightbox
+    // 选择模式：点击切换选中
+    if (state.selectMode) {
+      card.addEventListener('click', () => toggleSelect(f.name, card));
+      return grid.appendChild(card);
+    }
+
+    // 图片：点击打开灯箱
     if (f.type === 'image') {
       card.querySelector('.file-thumb').style.cursor = 'zoom-in';
       card.addEventListener('click', e => {
@@ -282,6 +307,90 @@ async function renderFiles() {
 function openLightbox(src) {
   document.getElementById('lightboxImg').src = src;
   document.getElementById('lightbox').classList.remove('hidden');
+}
+
+// ── batch select ──────────────────────────────────────────────────
+function enterSelectMode() {
+  state.selectMode = true;
+  state.selectedFiles.clear();
+  document.getElementById('batchBar').classList.remove('hidden');
+  document.getElementById('btnSelect').classList.add('active');
+  document.getElementById('btnUpload').classList.add('hidden');
+  document.getElementById('btnQrUpload').classList.add('hidden');
+  updateBatchBar();
+  renderFiles();
+}
+
+function exitSelectMode() {
+  state.selectMode = false;
+  state.selectedFiles.clear();
+  document.getElementById('batchBar').classList.add('hidden');
+  document.getElementById('btnSelect').classList.remove('active');
+  document.getElementById('btnUpload').classList.remove('hidden');
+  document.getElementById('btnQrUpload').classList.remove('hidden');
+  renderFiles();
+}
+
+function toggleSelect(name, card) {
+  if (state.selectedFiles.has(name)) {
+    state.selectedFiles.delete(name);
+    card.classList.remove('selected');
+  } else {
+    state.selectedFiles.add(name);
+    card.classList.add('selected');
+  }
+  updateBatchBar();
+}
+
+function updateBatchBar() {
+  const n = state.selectedFiles.size;
+  document.getElementById('selectedCount').textContent = `已选 ${n} 项`;
+  document.getElementById('btnDeleteSelected').disabled = n === 0;
+}
+
+async function deleteSelected() {
+  const names = [...state.selectedFiles];
+  if (!names.length) return;
+  if (!confirm(`确定删除选中的 ${names.length} 个文件？此操作不可恢复。`)) return;
+
+  const { id: projectId }  = state.currentProject;
+  const { id: categoryId } = state.currentCategory;
+
+  let failed = 0;
+  for (const name of names) {
+    try {
+      await api('DELETE', `/api/projects/${projectId}/categories/${categoryId}/files/${name}`);
+    } catch {
+      failed++;
+    }
+  }
+  if (failed > 0) alert(`${failed} 个文件删除失败`);
+  exitSelectMode();
+}
+
+// ── QR code ───────────────────────────────────────────────────────
+function getShareUrl() {
+  const base = location.origin + location.pathname;
+  return `${base}?p=${state.currentProject.id}&c=${state.currentCategory.id}`;
+}
+
+function showQrModal() {
+  const url = getShareUrl();
+  const modal = document.getElementById('qrModal');
+  const container = document.getElementById('qrContainer');
+  document.getElementById('qrUrl').textContent = url;
+  container.innerHTML = '';
+
+  if (typeof QRCode !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    container.appendChild(canvas);
+    QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1c1917', light: '#fafaf9' } }, err => {
+      if (err) container.innerHTML = `<p class="qr-fallback">生成失败，请手动输入地址</p>`;
+    });
+  } else {
+    container.innerHTML = `<p class="qr-fallback">QR 库加载中，请稍候刷新</p>`;
+  }
+  modal.classList.remove('hidden');
 }
 
 // ── upload queue ──────────────────────────────────────────────────
@@ -487,6 +596,46 @@ async function init() {
     if (e.target === document.getElementById('lightbox')) document.getElementById('lightbox').classList.add('hidden');
   });
 
+  // QR modal
+  document.getElementById('btnQrUpload').addEventListener('click', showQrModal);
+  document.getElementById('qrClose').addEventListener('click', () => document.getElementById('qrModal').classList.add('hidden'));
+  document.getElementById('qrModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('qrModal')) document.getElementById('qrModal').classList.add('hidden');
+  });
+
+  // 批量选择
+  document.getElementById('btnSelect').addEventListener('click', enterSelectMode);
+  document.getElementById('btnCancelSelect').addEventListener('click', exitSelectMode);
+  document.getElementById('btnSelectAll').addEventListener('click', () => {
+    const cards = document.querySelectorAll('#fileGrid .file-card');
+    cards.forEach(card => {
+      const name = card.dataset.name;
+      if (name) { state.selectedFiles.add(name); card.classList.add('selected'); }
+    });
+    updateBatchBar();
+  });
+  document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelected);
+
+  // URL 参数直跳（手机扫码后自动进入对应分类）
+  const params = new URLSearchParams(location.search);
+  const directP = params.get('p');
+  const directC = params.get('c');
+  if (directP && directC) {
+    try {
+      const projects = await api('GET', '/api/projects');
+      const proj = projects.find(p => p.id === directP);
+      if (proj) {
+        const { categories } = await api('GET', `/api/projects/${directP}/categories`);
+        const cat = categories.find(c => c.id === directC);
+        if (cat) {
+          state.currentProject = { id: proj.id, name: proj.name };
+          await loadFiles(directP, directC, cat.name);
+          return;
+        }
+      }
+    } catch { /* fallback to home */ }
+  }
+
   loadHome();
 }
 
@@ -495,6 +644,11 @@ function updateAdminBtn() {
   btn.textContent = state.isAdmin ? '🔓' : '🔒';
   btn.classList.toggle('active', state.isAdmin);
   btn.title = state.isAdmin ? '退出管理员' : '管理员登录';
+  // 批量选择按钮只对管理员可见
+  const selectBtn = document.getElementById('btnSelect');
+  if (state.currentCategory) {
+    selectBtn.classList.toggle('hidden', !state.isAdmin);
+  }
 }
 
 function reloadCurrentView() {

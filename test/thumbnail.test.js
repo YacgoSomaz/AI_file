@@ -37,10 +37,10 @@ test('图片缩略图：sharp 生成后文件存在于 .thumbs 目录', async ()
   // Assert: 文件真实存在
   assert.ok(fs.existsSync(thumbPath), '缩略图文件应存在于 .thumbs 目录');
 
-  // Assert: 文件大小合理（400×300 JPEG quality:72 的合理范围：2KB-80KB）
+  // Assert: 文件大小合理（fit:inside 最大 800×600，JPEG quality:72）
   const stat = fs.statSync(thumbPath);
-  assert.ok(stat.size > 2000,  '缩略图应大于 2KB（含实际像素内容）');
-  assert.ok(stat.size < 81920, '缩略图应小于 80KB（400×300 上限）');
+  assert.ok(stat.size > 500,    '缩略图应大于 0.5KB');
+  assert.ok(stat.size < 204800, '缩略图应小于 200KB（800×600 上限）');
 });
 
 test('视频文件：makeThumbnail 失败时静默返回 null（不崩溃）', async () => {

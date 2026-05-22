@@ -14,13 +14,14 @@ const app       = express();
 const PORT      = 5000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const THUMBS_DIR  = path.join(UPLOADS_DIR, '.thumbs');
+const INBOX_DIR   = path.join(__dirname, 'inbox');
 const DATA_FILE   = path.join(__dirname, 'data', 'projects.json');
 const ADMIN_CODE  = 'shashasha';
 const MAX_SIZE    = 500 * 1024 * 1024;
 const ALLOWED_EXT = /\.(jpg|jpeg|png|webp|mp4|mov|pdf|docx|xlsx|pptx)$/i;
 
 // ── init dirs ─────────────────────────────────────────────────────────────────
-[UPLOADS_DIR, THUMBS_DIR, path.dirname(DATA_FILE)].forEach(d => {
+[UPLOADS_DIR, THUMBS_DIR, INBOX_DIR, path.dirname(DATA_FILE)].forEach(d => {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
 });
 if (!fs.existsSync(DATA_FILE)) {
@@ -47,6 +48,7 @@ app.use(session({
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(UPLOADS_DIR));
 app.use('/thumbs',  express.static(THUMBS_DIR));
+app.use('/inbox',   express.static(INBOX_DIR));
 
 function adminOnly(req, res, next) {
   if (!req.session.isAdmin) return res.status(403).json({ error: '需要管理员权限' });
@@ -259,6 +261,91 @@ app.get('/api/download/:projectId/:categoryId/:filename', (req, res) => {
   const filePath = path.join(UPLOADS_DIR, req.params.projectId, req.params.categoryId, safe);
   if (!fs.existsSync(filePath)) return res.status(404).end();
   res.download(filePath, safe.replace(/^\d+_/, ''));
+});
+
+// ── inbox（自由空间）────────────────────────────────────────────────────────────
+const inboxUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, INBOX_DIR),
+    filename: (_req, file, cb) => {
+      const name = fixName(file.originalname);
+      const ext  = path.extname(name);
+      const base = path.basename(name, ext).replace(/[<>:"/\\|?*\s]/g, '_');
+      cb(null, `${Date.now()}_${base}${ext}`);
+    }
+  }),
+  limits: { fileSize: MAX_SIZE },
+  fileFilter: (_req, file, cb) => {
+    const name = fixName(file.originalname);
+    ALLOWED_EXT.test(path.extname(name)) ? cb(null, true) : cb(new Error('不支持的文件格式'));
+  }
+});
+
+// 上传到自由空间（无需登录）
+app.post('/api/inbox/upload', inboxUpload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '未收到文件' });
+  const ext = path.extname(req.file.filename).toLowerCase();
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    makeThumbnail(req.file.path, req.file.filename, THUMBS_DIR).catch(() => {});
+  }
+  res.json({ filename: req.file.filename, originalname: fixName(req.file.originalname) });
+});
+
+// 列出自由空间文件（无需登录）
+app.get('/api/inbox/files', (_req, res) => {
+  const files = fs.readdirSync(INBOX_DIR).map(name => {
+    const stat    = fs.statSync(path.join(INBOX_DIR, name));
+    const ext     = path.extname(name).toLowerCase();
+    const thumbName = name.replace(/\.[^.]+$/, '.jpg');
+    let type = 'doc';
+    if (IMAGE_EXTENSIONS.has(ext)) type = 'image';
+    else if (['.mp4', '.mov'].includes(ext)) type = 'video';
+    return {
+      name,
+      displayName: name.replace(/^\d+_/, ''),
+      size: stat.size,
+      uploadedAt: stat.mtime.toISOString(),
+      type,
+      thumb: fs.existsSync(path.join(THUMBS_DIR, thumbName)) ? `/thumbs/${thumbName}` : null
+    };
+  }).sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+  res.json(files);
+});
+
+// 归类：将自由空间文件移动到指定项目/分类（仅管理员）
+app.post('/api/inbox/classify', adminOnly, (req, res) => {
+  const { filename, projectId, categoryId } = req.body;
+  if (!filename || !projectId || !categoryId) return res.status(400).json({ error: '缺少参数' });
+  const safe = path.basename(filename);
+  const src  = path.join(INBOX_DIR, safe);
+  if (!fs.existsSync(src)) return res.status(404).json({ error: '文件不存在' });
+  const data     = loadData();
+  const project  = data.projects.find(p => p.id === projectId);
+  const category = project && project.categories.find(c => c.id === categoryId);
+  if (!project || !category) return res.status(404).json({ error: '目标项目或分类不存在' });
+  const destDir = path.join(UPLOADS_DIR, projectId, categoryId);
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.renameSync(src, path.join(destDir, safe));
+  res.json({ ok: true });
+});
+
+// 删除自由空间文件（仅管理员）
+app.delete('/api/inbox/files/:filename', adminOnly, (req, res) => {
+  const safe = path.basename(req.params.filename);
+  const fp   = path.join(INBOX_DIR, safe);
+  if (!fs.existsSync(fp)) return res.status(404).json({ error: '文件不存在' });
+  fs.unlinkSync(fp);
+  const thumbPath = path.join(THUMBS_DIR, safe.replace(/\.[^.]+$/, '.jpg'));
+  if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+  res.json({ ok: true });
+});
+
+// 自由空间文件下载
+app.get('/api/inbox/download/:filename', (req, res) => {
+  const safe = path.basename(req.params.filename);
+  const fp   = path.join(INBOX_DIR, safe);
+  if (!fs.existsSync(fp)) return res.status(404).end();
+  res.download(fp, safe.replace(/^\d+_/, ''));
 });
 
 // ── error handler ─────────────────────────────────────────────────────────────

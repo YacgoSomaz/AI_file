@@ -376,7 +376,9 @@ function getUploadUrl() {
 
 function showQrModal() {
   const url = getUploadUrl();
-  document.getElementById('qrUrl').textContent = url;
+  // 显示目标路径，而不是原始 URL
+  document.getElementById('qrUrl').textContent =
+    `${state.currentProject.name}  →  ${state.currentCategory.name}`;
   document.getElementById('qrContainer').innerHTML =
     `<img src="/api/qr?data=${encodeURIComponent(url)}" width="240" height="240" alt="二维码" style="border-radius:8px">`;
   document.getElementById('qrModal').classList.remove('hidden');
@@ -625,6 +627,7 @@ async function init() {
     } catch { /* fallback to home */ }
   }
 
+  initInbox();
   loadHome();
 }
 
@@ -651,3 +654,207 @@ function reloadCurrentView() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ── inbox（自由空间）──────────────────────────────────────────────
+const inbox = {
+  // 轮询间隔（ms），用于实时更新角标
+  _pollTimer: null,
+
+  async open() {
+    document.getElementById('inboxPanel').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    await this.render();
+  },
+
+  close() {
+    document.getElementById('inboxPanel').classList.add('hidden');
+    document.body.style.overflow = '';
+  },
+
+  // 刷新徽章数量（每次打开首页时调用）
+  async refreshBadge() {
+    try {
+      const files = await api('GET', '/api/inbox/files');
+      const badge = document.getElementById('inboxBadge');
+      if (files.length > 0) {
+        badge.textContent = files.length;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    } catch { /* 静默失败 */ }
+  },
+
+  async render() {
+    const grid = document.getElementById('inboxGrid');
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中…</div></div>';
+    let files;
+    try { files = await api('GET', '/api/inbox/files'); }
+    catch { grid.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败</div></div>'; return; }
+
+    // 更新角标
+    const badge = document.getElementById('inboxBadge');
+    if (files.length > 0) { badge.textContent = files.length; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+
+    if (files.length === 0) {
+      grid.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">自由空间暂无文件</div></div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    files.forEach(f => {
+      const card = document.createElement('div');
+      card.className = 'card file-card inbox-file-card';
+      const thumbContent = f.thumb
+        ? `<img src="${f.thumb}" loading="lazy" alt="${f.displayName}">`
+        : `<div class="file-thumb-placeholder">${fileIcon(f.type)}</div>`;
+      card.innerHTML =
+        `<div class="file-thumb">${thumbContent}</div>` +
+        `${typeBadge(f.type, f.displayName)}` +
+        `<div class="file-actions">` +
+          `<a href="/api/inbox/download/${encodeURIComponent(f.name)}" download>↓ 下载</a>` +
+          (state.isAdmin ? `<button class="btn-classify" data-name="${f.name}" data-display="${f.displayName}">📁 归类</button>` : '') +
+          (state.isAdmin ? `<button class="btn-delete-card" data-name="${f.name}">删除</button>` : '') +
+        `</div>` +
+        `<div class="file-info">` +
+          `<div class="file-name">${f.displayName}</div>` +
+          `<div class="file-meta">${formatSize(f.size)} · ${formatDate(f.uploadedAt)}</div>` +
+        `</div>`;
+
+      // 归类按钮
+      if (state.isAdmin) {
+        card.querySelector('.btn-classify').addEventListener('click', () => {
+          classifyModal.open(f.name, f.displayName);
+        });
+        card.querySelector('.btn-delete-card').addEventListener('click', async () => {
+          if (!confirm(`确定删除「${f.displayName}」？`)) return;
+          try {
+            await api('DELETE', `/api/inbox/files/${f.name}`);
+            await inbox.render();
+          } catch (e) { alert(e.message); }
+        });
+      }
+
+      // 图片灯箱
+      if (f.type === 'image') {
+        card.querySelector('.file-thumb').style.cursor = 'zoom-in';
+        card.addEventListener('click', e => {
+          if (e.target.closest('.btn-classify') || e.target.closest('.btn-delete-card') || e.target.closest('a')) return;
+          openLightbox(`/inbox/${f.name}`);
+        });
+      }
+
+      grid.appendChild(card);
+    });
+  },
+
+  // 上传到 inbox
+  async uploadFiles(fileList) {
+    const files = Array.from(fileList).filter(f => f.size > 0);
+    if (!files.length) return;
+    // 复用主上传队列，但目标 URL 不同
+    const tempProject  = { id: '__inbox__', name: '自由空间' };
+    const tempCategory = { id: '__inbox__', name: '待归类' };
+    // 直接推进队列
+    files.forEach(f => {
+      uq.items.push({
+        id:          ++uq._idSeq,
+        file:        f,
+        url:         '/api/inbox/upload',
+        status:      'waiting',
+        progress:    0,
+        name:        f.name,
+        destProject:  '__inbox__',
+        destCategory: '__inbox__',
+      });
+    });
+    uq._render();
+    uq._pump();
+    // 全部完成后刷新列表
+    const checkDone = setInterval(async () => {
+      const pending = uq.items.filter(i => i.destProject === '__inbox__' && (i.status === 'waiting' || i.status === 'uploading'));
+      if (pending.length === 0) {
+        clearInterval(checkDone);
+        await inbox.render();
+      }
+    }, 500);
+  }
+};
+
+// ── 归类弹窗 ──────────────────────────────────────────────────────
+const classifyModal = {
+  _filename: null,
+
+  async open(filename, displayName) {
+    this._filename = filename;
+    document.getElementById('classifyFilename').textContent = displayName;
+    // 加载项目列表
+    const projects = await api('GET', '/api/projects');
+    const sel = document.getElementById('classifyProject');
+    sel.innerHTML = '<option value="">选择项目</option>' +
+      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('classifyCategory').innerHTML = '<option value="">先选择项目</option>';
+    document.getElementById('classifyCategory').disabled = true;
+    document.getElementById('classifyModal').classList.remove('hidden');
+  },
+
+  close() {
+    document.getElementById('classifyModal').classList.add('hidden');
+    this._filename = null;
+  },
+
+  async confirm() {
+    const projectId  = document.getElementById('classifyProject').value;
+    const categoryId = document.getElementById('classifyCategory').value;
+    if (!projectId || !categoryId) { alert('请选择项目和分类'); return; }
+    try {
+      await api('POST', '/api/inbox/classify', { filename: this._filename, projectId, categoryId });
+      this.close();
+      await inbox.render();
+    } catch (e) { alert(e.message); }
+  }
+};
+
+// ── inbox 事件绑定（在 DOMContentLoaded 之后执行）────────────────
+function initInbox() {
+  // 打开/关闭面板
+  document.getElementById('btnInbox').addEventListener('click', () => inbox.open());
+  document.getElementById('inboxClose').addEventListener('click', () => inbox.close());
+  document.getElementById('inboxPanel').addEventListener('click', e => {
+    if (e.target === document.getElementById('inboxPanel')) inbox.close();
+  });
+
+  // 上传区域
+  const zone  = document.getElementById('inboxUploadZone');
+  const input = document.getElementById('inboxFileInput');
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => { inbox.uploadFiles(input.files); input.value = ''; });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    inbox.uploadFiles(e.dataTransfer.files);
+  });
+
+  // 归类弹窗事件
+  document.getElementById('classifyProject').addEventListener('change', async e => {
+    const pid = e.target.value;
+    const catSel = document.getElementById('classifyCategory');
+    if (!pid) { catSel.innerHTML = '<option value="">先选择项目</option>'; catSel.disabled = true; return; }
+    try {
+      const { categories } = await api('GET', `/api/projects/${pid}/categories`);
+      catSel.innerHTML = '<option value="">选择分类</option>' +
+        categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      catSel.disabled = false;
+    } catch { catSel.disabled = true; }
+  });
+  document.getElementById('classifyConfirm').addEventListener('click', () => classifyModal.confirm());
+  document.getElementById('classifyCancel').addEventListener('click',  () => classifyModal.close());
+  document.getElementById('classifyModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('classifyModal')) classifyModal.close();
+  });
+
+  // 初始刷新角标
+  inbox.refreshBadge();
+}

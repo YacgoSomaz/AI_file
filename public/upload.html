@@ -213,7 +213,8 @@
 <div class="upload-list" id="uploadList"></div>
 
 <script>
-  const params = new URLSearchParams(location.search);
+  const params     = new URLSearchParams(location.search);
+  const isInbox    = params.get('inbox') === '1';
   const projectId  = params.get('p');
   const categoryId = params.get('c');
 
@@ -225,6 +226,10 @@
 
   // ── load destination info ──────────────────────────────
   async function loadInfo() {
+    if (isInbox) {
+      destEl.innerHTML = `<strong>自由空间</strong><span class="arrow">›</span><strong>待归类</strong>`;
+      return;
+    }
     if (!projectId || !categoryId) {
       showError('链接无效，缺少项目或分类信息');
       return;
@@ -249,7 +254,7 @@
   fileInput.addEventListener('change', () => {
     const files = [...fileInput.files];
     if (!files.length) return;
-    fileInput.value = '';           // allow re-select same files
+    fileInput.value = '';
     summaryEl.classList.remove('show');
     files.forEach(uploadFile);
   });
@@ -260,7 +265,6 @@
   function uploadFile(file) {
     totalCount++;
 
-    // create item row
     const item = document.createElement('div');
     item.className = 'upload-item';
     item.innerHTML = `
@@ -278,8 +282,12 @@
     const fd = new FormData();
     fd.append('file', file);
 
+    const uploadUrl = isInbox
+      ? '/api/inbox/upload'
+      : `/api/upload/${projectId}/${categoryId}`;
+
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `/api/upload/${projectId}/${categoryId}`);
+    xhr.open('POST', uploadUrl);
 
     xhr.upload.addEventListener('progress', e => {
       if (e.lengthComputable) {

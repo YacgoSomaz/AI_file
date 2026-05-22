@@ -490,9 +490,20 @@
   <button id="fabInboxUpload" class="fab-inbox" title="快速上传到自由空间" aria-label="快速上传到自由空间">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     <span>快速上传</span>
-    <input type="file" id="fabFileInput" multiple hidden
-      accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.pdf,.docx,.xlsx,.pptx">
   </button>
+
+  <!-- ===================== 自由空间二维码弹窗 ===================== -->
+  <div id="inboxQrModal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="inboxQrTitle">
+    <div class="modal-panel qr-panel">
+      <h3 id="inboxQrTitle">手机扫码上传</h3>
+      <p class="qr-hint">扫码后直接上传到自由空间，不忙的时候再归类</p>
+      <div id="inboxQrContainer" class="qr-container"></div>
+      <div class="qr-url">自由空间 · 待归类</div>
+      <div class="modal-actions">
+        <button id="inboxQrClose" class="btn" type="button">关闭</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── 浮动上传队列面板 ────────────────────────────────────── -->
   <div id="uploadQueue" class="uq hidden">

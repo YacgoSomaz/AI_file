@@ -922,11 +922,21 @@ function initInbox() {
     } catch { catSel.disabled = true; }
   });
 
-  // FAB 悬浮上传
-  const fab      = document.getElementById('fabInboxUpload');
-  const fabInput = document.getElementById('fabFileInput');
-  fab.addEventListener('click', e => { if (e.target !== fabInput) fabInput.click(); });
-  fabInput.addEventListener('change', () => { inbox.uploadFiles(fabInput.files); fabInput.value = ''; });
+  // FAB 悬浮按钮 → 弹自由空间二维码
+  const fab = document.getElementById('fabInboxUpload');
+  fab.addEventListener('click', () => {
+    const url = `${location.origin}/upload.html?inbox=1`;
+    document.getElementById('inboxQrContainer').innerHTML =
+      `<img src="/api/qr?data=${encodeURIComponent(url)}" width="240" height="240" alt="二维码" style="border-radius:8px">`;
+    document.getElementById('inboxQrModal').classList.remove('hidden');
+  });
+  document.getElementById('inboxQrClose').addEventListener('click', () => {
+    document.getElementById('inboxQrModal').classList.add('hidden');
+  });
+  document.getElementById('inboxQrModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('inboxQrModal'))
+      document.getElementById('inboxQrModal').classList.add('hidden');
+  });
 
   // 首页横幅
   document.getElementById('inboxBannerBtn').addEventListener('click', () => inbox.open());

@@ -11,7 +11,7 @@ import QRCode from 'qrcode';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app       = express();
-const PORT      = 3000;
+const PORT      = 5000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const THUMBS_DIR  = path.join(UPLOADS_DIR, '.thumbs');
 const DATA_FILE   = path.join(__dirname, 'data', 'projects.json');

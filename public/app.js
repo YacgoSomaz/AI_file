@@ -659,62 +659,55 @@ document.addEventListener('DOMContentLoaded', init);
 
 // ── inbox（自由空间）──────────────────────────────────────────────
 const inbox = {
-  // 轮询间隔（ms），用于实时更新角标
-  _pollTimer: null,
+  _selected: new Set(),   // 当前选中的文件名
 
   async open() {
     document.getElementById('inboxPanel').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    this._selected.clear();
     await this.render();
   },
 
   close() {
     document.getElementById('inboxPanel').classList.add('hidden');
     document.body.style.overflow = '';
+    this._selected.clear();
   },
 
-  // 刷新提醒状态（角标 + 首页横幅）
+  // 刷新首页横幅 + FAB 提示
   async refreshBadge() {
     try {
       const files = await api('GET', '/api/inbox/files');
-      const count  = files.length;
-
-      // header 角标（header 里已移除，保留接口兼容）
-      const badge = document.getElementById('inboxBadge');
-      if (badge) {
-        badge.textContent = count;
-        badge.classList.toggle('hidden', count === 0);
-      }
-
-      // 首页横幅
-      const banner = document.getElementById('inboxBanner');
-      if (banner) {
-        if (count > 0) {
-          document.getElementById('inboxBannerCount').textContent = count;
-          banner.classList.remove('hidden');
-        } else {
-          banner.classList.add('hidden');
-        }
-      }
-
-      // FAB 角标
-      const fab = document.getElementById('fabInboxUpload');
-      if (fab) fab.classList.toggle('has-files', count > 0);
-
+      this._updateAlert(files.length);
     } catch { /* 静默失败 */ }
+  },
+
+  _updateAlert(count) {
+    // 首页横幅
+    const banner = document.getElementById('inboxBanner');
+    if (banner) {
+      document.getElementById('inboxBannerCount').textContent = count;
+      banner.classList.toggle('hidden', count === 0);
+    }
+    // FAB 脉冲
+    const fab = document.getElementById('fabInboxUpload');
+    if (fab) fab.classList.toggle('has-files', count > 0);
   },
 
   async render() {
     const grid = document.getElementById('inboxGrid');
     grid.innerHTML = '<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">加载中…</div></div>';
-    let files;
-    try { files = await api('GET', '/api/inbox/files'); }
-    catch { grid.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败</div></div>'; return; }
 
-    // 更新角标
-    const badge = document.getElementById('inboxBadge');
-    if (files.length > 0) { badge.textContent = files.length; badge.classList.remove('hidden'); }
-    else badge.classList.add('hidden');
+    let files;
+    try {
+      files = await api('GET', '/api/inbox/files');
+    } catch {
+      grid.innerHTML = '<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">加载失败，请重试</div></div>';
+      return;
+    }
+
+    this._updateAlert(files.length);
+    this._updateBatchBar();
 
     if (files.length === 0) {
       grid.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">自由空间暂无文件</div></div>';
@@ -724,16 +717,23 @@ const inbox = {
     grid.innerHTML = '';
     files.forEach(f => {
       const card = document.createElement('div');
-      card.className = 'card file-card inbox-file-card';
+      const isSel = this._selected.has(f.name);
+      card.className = 'card file-card inbox-file-card' + (isSel ? ' inbox-selected' : '');
+      card.dataset.name = f.name;
+
       const thumbContent = f.thumb
         ? `<img src="${f.thumb}" loading="lazy" alt="${f.displayName}">`
         : `<div class="file-thumb-placeholder">${fileIcon(f.type)}</div>`;
+
       card.innerHTML =
+        `<label class="inbox-checkbox" title="选择">` +
+          `<input type="checkbox" ${isSel ? 'checked' : ''}>` +
+          `<span class="inbox-checkbox-mark"></span>` +
+        `</label>` +
         `<div class="file-thumb">${thumbContent}</div>` +
         `${typeBadge(f.type, f.displayName)}` +
         `<div class="file-actions">` +
           `<a href="/api/inbox/download/${encodeURIComponent(f.name)}" download>↓ 下载</a>` +
-          (state.isAdmin ? `<button class="btn-classify" data-name="${f.name}" data-display="${f.displayName}">📁 归类</button>` : '') +
           (state.isAdmin ? `<button class="btn-delete-card" data-name="${f.name}">删除</button>` : '') +
         `</div>` +
         `<div class="file-info">` +
@@ -741,26 +741,36 @@ const inbox = {
           `<div class="file-meta">${formatSize(f.size)} · ${formatDate(f.uploadedAt)}</div>` +
         `</div>`;
 
-      // 归类按钮
+      // 勾选
+      const chk = card.querySelector('input[type=checkbox]');
+      chk.addEventListener('change', () => {
+        if (chk.checked) this._selected.add(f.name);
+        else this._selected.delete(f.name);
+        card.classList.toggle('inbox-selected', chk.checked);
+        this._updateBatchBar();
+      });
+
+      // 点卡片主体 = 切换勾选
+      card.addEventListener('click', e => {
+        if (e.target.closest('a') || e.target.closest('.btn-delete-card') || e.target.tagName === 'INPUT') return;
+        if (f.type === 'image' && !e.target.closest('.inbox-checkbox')) {
+          openLightbox(`/inbox/${f.name}`);
+          return;
+        }
+        chk.checked = !chk.checked;
+        chk.dispatchEvent(new Event('change'));
+      });
+
+      // 删除按钮（管理员）
       if (state.isAdmin) {
-        card.querySelector('.btn-classify').addEventListener('click', () => {
-          classifyModal.open(f.name, f.displayName);
-        });
-        card.querySelector('.btn-delete-card').addEventListener('click', async () => {
+        card.querySelector('.btn-delete-card').addEventListener('click', async e => {
+          e.stopPropagation();
           if (!confirm(`确定删除「${f.displayName}」？`)) return;
           try {
             await api('DELETE', `/api/inbox/files/${f.name}`);
-            await inbox.render();
-          } catch (e) { alert(e.message); }
-        });
-      }
-
-      // 图片灯箱
-      if (f.type === 'image') {
-        card.querySelector('.file-thumb').style.cursor = 'zoom-in';
-        card.addEventListener('click', e => {
-          if (e.target.closest('.btn-classify') || e.target.closest('.btn-delete-card') || e.target.closest('a')) return;
-          openLightbox(`/inbox/${f.name}`);
+            this._selected.delete(f.name);
+            await this.render();
+          } catch (err) { alert(err.message); }
         });
       }
 
@@ -768,98 +778,141 @@ const inbox = {
     });
   },
 
+  // 全选 / 反选 / 取消
+  async selectAll() {
+    const cards = document.querySelectorAll('#inboxGrid .inbox-file-card');
+    cards.forEach(card => {
+      const name = card.dataset.name;
+      const chk  = card.querySelector('input[type=checkbox]');
+      this._selected.add(name);
+      chk.checked = true;
+      card.classList.add('inbox-selected');
+    });
+    this._updateBatchBar();
+  },
+  async invertSelect() {
+    const cards = document.querySelectorAll('#inboxGrid .inbox-file-card');
+    cards.forEach(card => {
+      const name = card.dataset.name;
+      const chk  = card.querySelector('input[type=checkbox]');
+      if (this._selected.has(name)) { this._selected.delete(name); chk.checked = false; card.classList.remove('inbox-selected'); }
+      else                           { this._selected.add(name);    chk.checked = true;  card.classList.add('inbox-selected'); }
+    });
+    this._updateBatchBar();
+  },
+  clearSelect() {
+    this._selected.clear();
+    document.querySelectorAll('#inboxGrid .inbox-file-card').forEach(card => {
+      card.querySelector('input[type=checkbox]').checked = false;
+      card.classList.remove('inbox-selected');
+    });
+    this._updateBatchBar();
+  },
+
+  async _updateBatchBar() {
+    const bar = document.getElementById('inboxBatchBar');
+    if (!bar) return;
+    const n = this._selected.size;
+    document.getElementById('inboxSelCount').textContent = `已选 ${n} 个`;
+    const count2 = document.getElementById('inboxSelCount2');
+    if (count2) count2.textContent = `已选 ${n} 个文件`;
+    const wasHidden = bar.classList.contains('hidden');
+    bar.classList.toggle('hidden', n === 0);
+    // 首次展开时加载项目列表
+    if (wasHidden && n > 0) {
+      try {
+        const projects = await api('GET', '/api/projects');
+        const sel = document.getElementById('inboxBatchProject');
+        sel.innerHTML = '<option value="">选择项目</option>' +
+          projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        document.getElementById('inboxBatchCategory').innerHTML = '<option value="">先选择项目</option>';
+        document.getElementById('inboxBatchCategory').disabled = true;
+      } catch { /* ignore */ }
+    }
+  },
+
+  // 批量归类
+  async batchClassify() {
+    const projectId  = document.getElementById('inboxBatchProject').value;
+    const categoryId = document.getElementById('inboxBatchCategory').value;
+    if (!projectId || !categoryId) { alert('请先选择项目和分类'); return; }
+    const names = [...this._selected];
+    const btn = document.getElementById('inboxBatchConfirm');
+    btn.disabled = true; btn.textContent = '归类中…';
+    let failed = 0;
+    for (const filename of names) {
+      try { await api('POST', '/api/inbox/classify', { filename, projectId, categoryId }); }
+      catch { failed++; }
+    }
+    btn.disabled = false; btn.textContent = '确认归类';
+    if (failed > 0) alert(`${failed} 个文件归类失败`);
+    this._selected.clear();
+    // 重置下拉框
+    document.getElementById('inboxBatchProject').value = '';
+    document.getElementById('inboxBatchCategory').innerHTML = '<option value="">先选择项目</option>';
+    document.getElementById('inboxBatchCategory').disabled = true;
+    await this.render();
+  },
+
+  // 批量删除
+  async batchDelete() {
+    const names = [...this._selected];
+    if (!confirm(`确定删除选中的 ${names.length} 个文件？`)) return;
+    for (const filename of names) {
+      try { await api('DELETE', `/api/inbox/files/${filename}`); } catch {}
+    }
+    this._selected.clear();
+    await this.render();
+  },
+
   // 上传到 inbox
-  async uploadFiles(fileList) {
+  uploadFiles(fileList) {
     const files = Array.from(fileList).filter(f => f.size > 0);
     if (!files.length) return;
-    // 复用主上传队列，但目标 URL 不同
-    const tempProject  = { id: '__inbox__', name: '自由空间' };
-    const tempCategory = { id: '__inbox__', name: '待归类' };
-    // 直接推进队列
     files.forEach(f => {
       uq.items.push({
-        id:          ++uq._idSeq,
-        file:        f,
-        url:         '/api/inbox/upload',
-        status:      'waiting',
-        progress:    0,
-        name:        f.name,
-        destProject:  '__inbox__',
-        destCategory: '__inbox__',
+        id: ++uq._idSeq, file: f, url: '/api/inbox/upload',
+        status: 'waiting', progress: 0, name: f.name,
+        destProject: '__inbox__', destCategory: '__inbox__',
       });
     });
     uq._render();
     uq._pump();
-    // 全部完成后刷新列表
     const checkDone = setInterval(async () => {
       const pending = uq.items.filter(i => i.destProject === '__inbox__' && (i.status === 'waiting' || i.status === 'uploading'));
-      if (pending.length === 0) {
-        clearInterval(checkDone);
-        await inbox.render();
-      }
+      if (pending.length === 0) { clearInterval(checkDone); await inbox.render(); }
     }, 500);
   }
 };
 
-// ── 归类弹窗 ──────────────────────────────────────────────────────
-const classifyModal = {
-  _filename: null,
-
-  async open(filename, displayName) {
-    this._filename = filename;
-    document.getElementById('classifyFilename').textContent = displayName;
-    // 加载项目列表
-    const projects = await api('GET', '/api/projects');
-    const sel = document.getElementById('classifyProject');
-    sel.innerHTML = '<option value="">选择项目</option>' +
-      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-    document.getElementById('classifyCategory').innerHTML = '<option value="">先选择项目</option>';
-    document.getElementById('classifyCategory').disabled = true;
-    document.getElementById('classifyModal').classList.remove('hidden');
-  },
-
-  close() {
-    document.getElementById('classifyModal').classList.add('hidden');
-    this._filename = null;
-  },
-
-  async confirm() {
-    const projectId  = document.getElementById('classifyProject').value;
-    const categoryId = document.getElementById('classifyCategory').value;
-    if (!projectId || !categoryId) { alert('请选择项目和分类'); return; }
-    try {
-      await api('POST', '/api/inbox/classify', { filename: this._filename, projectId, categoryId });
-      this.close();
-      await inbox.render();
-    } catch (e) { alert(e.message); }
-  }
-};
-
-// ── inbox 事件绑定（在 DOMContentLoaded 之后执行）────────────────
+// ── inbox 事件绑定 ────────────────────────────────────────────────
 function initInbox() {
-  // 打开/关闭面板
+  // 打开 / 关闭面板
   document.getElementById('btnInbox').addEventListener('click', () => inbox.open());
   document.getElementById('inboxClose').addEventListener('click', () => inbox.close());
-  document.getElementById('inboxPanel').addEventListener('click', e => {
-    if (e.target === document.getElementById('inboxPanel')) inbox.close();
-  });
 
-  // 上传区域
+  // 面板内上传区
   const zone  = document.getElementById('inboxUploadZone');
   const input = document.getElementById('inboxFileInput');
   zone.addEventListener('click', () => input.click());
   input.addEventListener('change', () => { inbox.uploadFiles(input.files); input.value = ''; });
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    inbox.uploadFiles(e.dataTransfer.files);
-  });
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag-over'); inbox.uploadFiles(e.dataTransfer.files); });
 
-  // 归类弹窗事件
-  document.getElementById('classifyProject').addEventListener('change', async e => {
-    const pid = e.target.value;
-    const catSel = document.getElementById('classifyCategory');
+  // 批量操作栏按钮
+  document.getElementById('inboxSelAll').addEventListener('click',    () => inbox.selectAll());
+  document.getElementById('inboxSelInvert').addEventListener('click', () => inbox.invertSelect());
+  document.getElementById('inboxSelClear').addEventListener('click',  () => inbox.clearSelect());
+  document.getElementById('inboxBatchConfirm').addEventListener('click', () => inbox.batchClassify());
+  if (state.isAdmin) {
+    document.getElementById('inboxBatchDelete').addEventListener('click', () => inbox.batchDelete());
+  }
+
+  // 批量归类：项目变化时加载分类
+  document.getElementById('inboxBatchProject').addEventListener('change', async e => {
+    const pid    = e.target.value;
+    const catSel = document.getElementById('inboxBatchCategory');
     if (!pid) { catSel.innerHTML = '<option value="">先选择项目</option>'; catSel.disabled = true; return; }
     try {
       const { categories } = await api('GET', `/api/projects/${pid}/categories`);
@@ -868,28 +921,16 @@ function initInbox() {
       catSel.disabled = false;
     } catch { catSel.disabled = true; }
   });
-  document.getElementById('classifyConfirm').addEventListener('click', () => classifyModal.confirm());
-  document.getElementById('classifyCancel').addEventListener('click',  () => classifyModal.close());
-  document.getElementById('classifyModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('classifyModal')) classifyModal.close();
-  });
 
-  // FAB 悬浮上传按钮
+  // FAB 悬浮上传
   const fab      = document.getElementById('fabInboxUpload');
   const fabInput = document.getElementById('fabFileInput');
-  fab.addEventListener('click', e => {
-    if (e.target === fabInput) return;
-    fabInput.click();
-  });
-  fabInput.addEventListener('change', () => {
-    inbox.uploadFiles(fabInput.files);
-    fabInput.value = '';
-  });
+  fab.addEventListener('click', e => { if (e.target !== fabInput) fabInput.click(); });
+  fabInput.addEventListener('change', () => { inbox.uploadFiles(fabInput.files); fabInput.value = ''; });
 
-  // 首页横幅「立即归类」按钮
-  const bannerBtn = document.getElementById('inboxBannerBtn');
-  if (bannerBtn) bannerBtn.addEventListener('click', () => inbox.open());
+  // 首页横幅
+  document.getElementById('inboxBannerBtn').addEventListener('click', () => inbox.open());
 
-  // 初始刷新角标 & 横幅
+  // 初始刷新横幅
   inbox.refreshBadge();
 }

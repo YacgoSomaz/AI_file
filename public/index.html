@@ -433,6 +433,8 @@
   <!-- ===================== INBOX / 自由空间 ===================== -->
   <div id="inboxPanel" class="inbox-panel hidden" role="dialog" aria-modal="true">
     <div class="inbox-inner">
+
+      <!-- 顶部标题行 -->
       <div class="inbox-head">
         <div>
           <span class="eyebrow">Inbox · 自由空间</span>
@@ -443,34 +445,44 @@
         </button>
       </div>
 
-      <!-- 上传入口 -->
+      <!-- 上传区域 -->
       <div class="inbox-upload-zone" id="inboxUploadZone">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <span>点击或拖拽上传到自由空间</span>
         <input type="file" id="inboxFileInput" multiple hidden
           accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.pdf,.docx,.xlsx,.pptx">
       </div>
 
+      <!-- 选择工具栏 -->
+      <div class="inbox-sel-bar">
+        <div class="inbox-sel-actions">
+          <button id="inboxSelAll" class="btn btn-ghost btn-sm">全选</button>
+          <button id="inboxSelInvert" class="btn btn-ghost btn-sm">反选</button>
+          <button id="inboxSelClear" class="btn btn-ghost btn-sm">取消</button>
+        </div>
+        <span id="inboxSelCount" class="inbox-sel-count">已选 0 个</span>
+      </div>
+
       <!-- 文件网格 -->
       <div id="inboxGrid" class="inbox-grid"></div>
-    </div>
-  </div>
 
-  <!-- 归类弹窗（管理员） -->
-  <div id="classifyModal" class="hidden" role="dialog" aria-modal="true">
-    <div class="modal-panel">
-      <h3>归类到…</h3>
-      <p class="classify-filename" id="classifyFilename"></p>
-      <select id="classifyProject" class="classify-select">
-        <option value="">选择项目</option>
-      </select>
-      <select id="classifyCategory" class="classify-select" disabled>
-        <option value="">先选择项目</option>
-      </select>
-      <div class="modal-actions">
-        <button id="classifyCancel" type="button">取消</button>
-        <button id="classifyConfirm" type="button">确认归类</button>
+      <!-- 批量操作吸底栏（选中文件后出现） -->
+      <div id="inboxBatchBar" class="inbox-batch-bar hidden">
+        <div class="inbox-batch-left">
+          <span id="inboxSelCount2" class="inbox-batch-count"></span>
+          <select id="inboxBatchProject" class="classify-select">
+            <option value="">选择项目</option>
+          </select>
+          <select id="inboxBatchCategory" class="classify-select" disabled>
+            <option value="">先选择项目</option>
+          </select>
+        </div>
+        <div class="inbox-batch-right">
+          <button id="inboxBatchDelete" class="btn btn-danger btn-sm">删除</button>
+          <button id="inboxBatchConfirm" class="btn btn-clay btn-sm">确认归类</button>
+        </div>
       </div>
+
     </div>
   </div>
 

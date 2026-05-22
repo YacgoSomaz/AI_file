@@ -6,6 +6,7 @@ import fs             from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { v4 as uuidv4 } from 'uuid';
 import { makeThumbnail, IMAGE_EXTENSIONS } from './lib/thumbnail.js';
+import QRCode from 'qrcode';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -51,6 +52,18 @@ function adminOnly(req, res, next) {
   if (!req.session.isAdmin) return res.status(403).json({ error: '需要管理员权限' });
   next();
 }
+
+// ── QR code ──────────────────────────────────────────────────────────────────
+app.get('/api/qr', async (req, res) => {
+  const data = req.query.data;
+  if (!data) return res.status(400).json({ error: '缺少 data 参数' });
+  try {
+    const png = await QRCode.toBuffer(data, { width: 240, margin: 2 });
+    res.set('Content-Type', 'image/png').send(png);
+  } catch (e) {
+    res.status(500).json({ error: '生成失败' });
+  }
+});
 
 // ── auth ──────────────────────────────────────────────────────────────────────
 app.post('/api/admin/login', (req, res) => {

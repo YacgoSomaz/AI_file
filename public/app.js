@@ -376,21 +376,11 @@ function getShareUrl() {
 
 function showQrModal() {
   const url = getShareUrl();
-  const modal = document.getElementById('qrModal');
-  const container = document.getElementById('qrContainer');
   document.getElementById('qrUrl').textContent = url;
-  container.innerHTML = '';
-
-  if (typeof QRCode !== 'undefined') {
-    const canvas = document.createElement('canvas');
-    container.appendChild(canvas);
-    QRCode.toCanvas(canvas, url, { width: 200, margin: 2, color: { dark: '#1c1917', light: '#fafaf9' } }, err => {
-      if (err) container.innerHTML = `<p class="qr-fallback">生成失败，请手动输入地址</p>`;
-    });
-  } else {
-    container.innerHTML = `<p class="qr-fallback">QR 库加载中，请稍候刷新</p>`;
-  }
-  modal.classList.remove('hidden');
+  // 服务端生成，无 CDN 依赖，点开即显示
+  document.getElementById('qrContainer').innerHTML =
+    `<img src="/api/qr?data=${encodeURIComponent(url)}" width="240" height="240" alt="二维码" style="border-radius:8px">`;
+  document.getElementById('qrModal').classList.remove('hidden');
 }
 
 // ── upload queue ──────────────────────────────────────────────────
